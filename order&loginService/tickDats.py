@@ -3,13 +3,17 @@ import datetime
 from mongo import *
 from execOrder import *
 
-accToken = 'U5NGn6cMfpgqrGr2RC0831YfVXLHzBln'
-apiKey = 'k55bdfkr27eqguv6'
+# accToken = 'U5NGn6cMfpgqrGr2RC0831YfVXLHzBln'
+# apiKey = 'k55bdfkr27eqguv6'
 # Temprory adding strike data for sl target function as of now tick data is being automatically being added for strike  3050241
-tokens = [260105,12831746]
-kws = KiteTicker(apiKey, accToken)
+tokens = [260105]
+# kws = KiteTicker(apiKey, accToken)
 client = ConnectDB()
 db = client['algoTrading']
+collection = db["userDetails"]
+user = collection.find_one({"name" : "SIDDHARTH LAHOTY"})
+# kws = KiteTicker(apiKey, accToken)
+kws = KiteTicker(user["apikey"],user["acc_token"])
 # counter = 0
 def on_ticks(ws, ticks,counter = 0):
     print("on tick called")

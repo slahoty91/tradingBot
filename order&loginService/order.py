@@ -1,12 +1,19 @@
 from datetime import datetime
 import os
 from kiteconnect import KiteConnect
+import mongo
 
-pw = os.chdir("/Users/siddharthlahoty/Desktop/AlogoTrading/order&loginService/acc_auth")
-acc_token_path = "access_token.txt"
-acc_token = open(acc_token_path,'r').read().split()
-kite = KiteConnect(api_key="k55bdfkr27eqguv6")
-data = kite.set_access_token(acc_token[0])
+client = mongo.ConnectDB()
+db = client["algoTrading"]
+collection = db["userDetails"]
+
+users = collection.find_one({"name" : "SIDDHARTH LAHOTY"},{"_id":0,"apikey":1,"acc_token":1})
+print(users,"from ordersssssss")
+# pw = os.chdir("/Users/siddharthlahoty/Desktop/AlogoTrading/order&loginService/acc_auth")
+# acc_token_path = "access_token.txt"
+# acc_token = open(acc_token_path,'r').read().split()
+kite = KiteConnect(users["apikey"])
+data = kite.set_access_token(users["acc_token"])
 
 def placeBuyOrderMarketNSE(tradingsymbol, qty):
 
@@ -99,7 +106,7 @@ def orderHistory(orderId):
     except Exception as e:
         print("Order history failed{}".format(e))
 
-ord = orderHistory(230529500203696)
+# ord = orderHistory(230529500203696)
 # print(ord[4],'orddddddd',len(ord))
 # time = ord[4]['exchange_timestamp']
 # print(time.strftime("%Y-%m-%d %H:%M:%S"))

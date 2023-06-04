@@ -8,7 +8,7 @@ const supResLevelSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ["breakout","breakdown","support","resistance","notAssigned"],
+        enum: ["breakout","breakdown","support","resistance","fiveMinSup","fiveMinRes","notAssigned"],
         required: true
     },
     testCount: {
@@ -24,7 +24,10 @@ const tradeResult = new mongoose.Schema({
     orderId: {
         type: String
     },
-    result
+    result: {
+        type: String,
+        enum: ["Profit","Loss"]
+    }
 })
 const supResSchema = new mongoose.Schema({
     id: {
@@ -36,29 +39,30 @@ const supResSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    tradingsymbol: {
+        type: String,
+        required: true
+    },
     interchangable: {
         type: Boolean,
         default: false
     },
     status: {
         type: String,
-        enum: ["Active", "Passive"],
+        enum: ["Active", "Passive","Intrade"],
         default: "Passive"
     },
     instrument_token: {
         type: Number,
         required: true
     },
-    tradingsymbol: {
-        type: String,
-        required: true
-    },
+    
     levelDetails: supResLevelSchema,
     dateCreated: {
         type: Date,
         default: Date.now
     },
-    tradeResult: [],
+    tradeResults: [tradeResult],
     dateUpdated: Date
 })
 

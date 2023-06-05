@@ -1,4 +1,5 @@
 from datetime import datetime, time, timedelta
+import random
 from mongo import *
 from order import placeBuyOrderMarketNSE, orderHistory, PlaceSellOrderMarketNSE, fakeOrder
 
@@ -9,22 +10,24 @@ target = 10
 stoppLoss = 2.5
 client = ConnectDB()
 db = client["algoTrading"]
-current_time = datetime.now().time()
-start_time = time(8, 12)
-end_time = time(8, 14)
+
+start_time = datetime.strptime("11:00", "%H:%M").time()
+end_time = datetime.strptime("13:22", "%H:%M").time()
+firstFiveMinCounter = 0
 
 def fetchData(data):
-    print(data,'from fetch data')
-
-    # if start_time <= current_time <= end_time:
-        # firstFiveMin(data,end_time,current_time)
-    collection = db["levels"]
-    levels = collection.find({"instrument_token" : data["instrument_token"]})
-    levels = list(levels)
-    if data["instrument_token"] != 260105:
-        checkTargetAndSL(data)
-    if data['instrument_token'] == 260105:
-        return checkCondition(data['last_price'], data['instrument_token'],levels)
+    # print(data,'from fetch data')
+    current_time = datetime.now().time()
+    if start_time <= current_time <= end_time:
+        print("startTime=",start_time,"currentTime",current_time,"endTime=",end_time)
+        firstFiveMin(data,end_time,current_time)
+    # collection = db["levels"]
+    # levels = collection.find({"instrument_token" : data["instrument_token"]})
+    # levels = list(levels)
+    # if data["instrument_token"] != 260105:
+    #     checkTargetAndSL(data)
+    # if data['instrument_token'] == 260105:
+    #     return checkCondition(data['last_price'], data['instrument_token'],levels)
     return False
 
 support = list()
@@ -35,7 +38,6 @@ def checkCondition(tradingprice,istToken,levels):
     
     print("check conditionssss for orders")
     
-    # print(levels,'levelssssss')
     for lev in levels:
         
         checkSupResStatus(lev,tradingprice)
@@ -46,21 +48,11 @@ def checkCondition(tradingprice,istToken,levels):
             resistance.append(lev)
     
     print(support,'supportttttttt',resistance,'resistanceeeeeeeee')
-    # for sup in support:
-    #     # print('from support for',tradingprice,sup,(tradingprice - sup))
-    #     if (sup <= tradingprice<=sup+100):
-    #         return placeOrder(tradingprice, istToken, "CE")
-    #         # return True
-    
-    # for res in resistance:
-    #     # print('from res for',tradingprice)
-    #     if( res-10<=tradingprice<= res):
-    #         print('oreder placed put',tradingprice)
-    #         return
 
     return
 
 def checkSupResStatus(level, indexAt):
+    current_time = datetime.now().time()
     lev = level["levelDetails"]["level"]
     collection = db["levels"]
     if indexAt >= (lev + 35):
@@ -208,7 +200,7 @@ def checkTargetAndSL(data):
         if (stpLss >= data["last_price"] or target <= data["last_price"]):
             print("EXECUTE SELL ORDER")
             # orderId = PlaceSellOrderMarketNSE("YESBANK",1)
-            orderId = "230531601394633"
+            orderId = random.randint(10000,99999)
             # orderData = orderHistory(orderId)
             orderData = fakeOrder(data["last_price"])
             orderTime = orderData[len(orderData)-1]['order_timestamp']
@@ -258,24 +250,35 @@ def checkTargetAndSL(data):
         print(stpLss, target,'sl and targettttttttt')
     return
 
+
+
 def myFunc(e):
     return e['last_price']
 def firstFiveMin(data,endT,curT):
-    print('from first five min')
+    print('from first five min',data)
     collectionName = db["firstFiveMinData"]
     collectionName.insert_one(data)
-    if(curT == endT): 
+    time_diff = datetime.combine(datetime.min, endT) - datetime.combine(datetime.min, curT)
+    time_diff_sec = time_diff.total_seconds()
+    print(time_diff,"time diffranceeeeeee")
+    collectionName = db["levels"]
+    countFiveMinSupport = collectionName.count_documents({"levelDetails.type":{"$in":["fiveMinSup","fiveMinRes"]}})
+    print(countFiveMinSupport,"count from first five min")
+    if countFiveMinSupport > 0:
+        return
+    if(time_diff_sec<= 5 and countFiveMinSupport == 0): 
         print("from if in first five min")
+        collectionName = db["firstFiveMinData"]
         val = collectionName.find({"instrument_token" : 260105},{"last_price":1,"_id":0})
         val = list(val)
         # print(val,'')
         val.sort(key=myFunc)
-        print(val)
+        # print(val)
         lowerVal = val[0]
         upperVal = val[len(val)-1]
         collection = db["levels"]
         count = collection.count_documents({})
-        print(count)
+        print(count,"count Documents level")
         obj = [{
             "id": "Level-0"+str(count+1),
             "name" : "NIFTY BANK",
@@ -284,7 +287,7 @@ def firstFiveMin(data,endT,curT):
             "status" : "Active",
             "instrument_token" : 260105,
             "levelDetails" : {
-            "level" : lowerVal,
+            "level" : lowerVal["last_price"],
             "type" : "fiveMinSup",
             "testCount" : 0,
             "interChanged" : False
@@ -298,36 +301,39 @@ def firstFiveMin(data,endT,curT):
             "status" : "Active",
             "instrument_token" : 260105,
             "levelDetails" : {
-            "level" : upperVal,
+            "level" : upperVal["last_price"],
             "type" : "fiveMinRes",
             "testCount" : 0,
             "interChanged" : False
             }
         }]
         # now save in support and resistance table
+        print(obj,"objecttttttt")
         collection = db["levels"]
         res = collection.insert_many(obj)
         print(res, "result from insert data")
-        re = collection.update_many(
-            {
+        filterObj = {
                 "levelDetails.type":"resistance",
-                "levelDetails.level":{"$gt":upperVal}
+                "levelDetails.level":{"$gt":upperVal["last_price"]}
             }
-            ,
+        print(filterObj,'filterObj resistance')
+        re = collection.update_many(
+            filterObj,
             {
                 "$set":{"status":"Active"}
             })
         
         print(re,'resultttt from first five min update resistance')
-        re = collection.update_many(
-            {
+        filterObj = {
                 "levelDetails.type":"support",
-                "levelDetails.level":{"$lt":lowerVal}
+                "levelDetails.level":{"$lt":lowerVal["last_price"]}
             }
-            ,
+        re = collection.update_many(
+                filterObj,
             {
                 "$set":{"status":"Active"}
             })
+        print(filterObj,"filterObj support")
         
     return
 

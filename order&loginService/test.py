@@ -58,13 +58,23 @@ from datetime import datetime, time, timedelta
 # # Print the new time
 # print(new_time)
 
-current_time = datetime.now().time()
+# current_time = datetime.now().time()
 
-# Time stored in a variable (replace with your own time)
-stored_time = datetime.strptime("10:20", "%H:%M").time()
+# # Time stored in a variable (replace with your own time)
+# stored_time = datetime.strptime("10:20", "%H:%M").time()
 
-# Calculate the time difference
-time_diff = datetime.combine(datetime.min, current_time) - datetime.combine(datetime.min, stored_time)
+# # Calculate the time difference
+# time_diff = datetime.combine(datetime.min, current_time) - datetime.combine(datetime.min, stored_time)
 
-# Print the result
-print(time_diff)
+# # Print the result
+# print(time_diff)
+# current_time = datetime.now().time()
+# stored_time = datetime.strptime("10:20", "%H:%M").time()
+# if current_time > stored_time:
+#     print("hiiii")
+
+trendSch = {
+    "up":"BULLISH",
+
+}
+print(trendSch)

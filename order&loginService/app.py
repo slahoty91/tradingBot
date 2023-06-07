@@ -11,7 +11,6 @@ db = client["algoTrading"]
 def getUserDetails():
    collection = db["userDetails"]
    user = collection.find_one({})
-   print(user,'from get users function')
    return user
 
 # getUserDetails()

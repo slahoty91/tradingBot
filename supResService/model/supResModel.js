@@ -8,7 +8,17 @@ const supResLevelSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ["breakout","breakdown","support","resistance","fiveMinSup","fiveMinRes","notAssigned"],
+        enum: [
+            "breakout",
+            "breakdown",
+            "support",
+            "resistance",
+            "fiveMinSup",
+            "fiveMinRes",
+            "testedSup",
+            "testedRes",
+            "notAssigned"
+        ],
         required: true
     },
     testCount: {
@@ -49,7 +59,7 @@ const supResSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ["Active", "Passive","Intrade"],
+        enum: ["Active", "Passive","Intrade","Closed"],
         default: "Passive"
     },
     instrument_token: {

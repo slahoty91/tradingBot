@@ -6,28 +6,31 @@ from order import placeBuyOrderMarketNSE, orderHistory, PlaceSellOrderMarketNSE,
 # support = [43583,4000]
 # resistance = [43682,44360]
 expiry = "2023-06-01"
-target = 10
-stoppLoss = 2.5
+target = 15
+stoppLoss = 2
 client = ConnectDB()
 db = client["algoTrading"]
 
 start_time = datetime.strptime("11:00", "%H:%M").time()
 end_time = datetime.strptime("13:22", "%H:%M").time()
 firstFiveMinCounter = 0
+# trend  "BULLISH", "BEARISH", "SIDEWAYS"
+trend = "BULLISH"
 
 def fetchData(data):
-    # print(data,'from fetch data')
+
+    print(data,'from fetch data')
     current_time = datetime.now().time()
     if start_time <= current_time <= end_time:
         print("startTime=",start_time,"currentTime",current_time,"endTime=",end_time)
         firstFiveMin(data,end_time,current_time)
-    # collection = db["levels"]
-    # levels = collection.find({"instrument_token" : data["instrument_token"]})
-    # levels = list(levels)
-    # if data["instrument_token"] != 260105:
-    #     checkTargetAndSL(data)
-    # if data['instrument_token'] == 260105:
-    #     return checkCondition(data['last_price'], data['instrument_token'],levels)
+    collection = db["levels"]
+    levels = collection.find({"instrument_token" : data["instrument_token"],"status":{"$ne":"Closed"}})
+    levels = list(levels)
+    if data["instrument_token"] != 260105:
+        checkTargetAndSL(data)
+    if data['instrument_token'] == 260105:
+        return checkCondition(data['last_price'], data['instrument_token'],levels)
     return False
 
 support = list()
@@ -36,25 +39,40 @@ resistance = list()
 def checkCondition(tradingprice,istToken,levels):
 
     
-    print("check conditionssss for orders")
+    print("check conditionssss for orders",levels)
     
     for lev in levels:
-        
+        # print(lev,"from for loopppppp")
         checkSupResStatus(lev,tradingprice)
-        if (lev["levelDetails"]["type"] == "support" or lev["levelDetails"]["type"] == "fiveMinRes") and lev["levelDetails"]["level"]<tradingprice<lev["levelDetails"]["level"]+200 and lev["status"] == "Active":
+        # Add tiem bound condition
+        if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice >lev["levelDetails"]["level"] and lev["status"] == "Active" and (trend == "BULLISH" or trend == "SIDEWAYS")):
             return placeOrder(tradingprice, istToken, "CE",lev)
         
+        if (lev["levelDetails"]["type"] == "fiveMinSup" and tradingprice < lev["levelDetails"]["level"] and lev["status"] == "Active" and (trend == "BEARISH" or trend == "SIDEWAYS")):
+            return placeOrder(tradingprice, istToken, "PE",lev)
+
+        if (lev["levelDetails"]["type"] == "support") and lev["levelDetails"]["level"]<tradingprice<lev["levelDetails"]["level"]+200 and lev["status"] == "Active":
+            return placeOrder(tradingprice, istToken, "CE",lev)
+        
+        if (lev["levelDetails"]["type"] == "testedSup" and lev["levelDetails"]["level"] + 25<=tradingprice<lev["levelDetails"]["level"] + 35 and lev["status"] == "Active"):
+            return placeOrder(tradingprice, istToken, "CE",lev)
+        
+        if (lev["levelDetails"]["type"] == "testedRes" and lev["levelDetails"]["level"] - 35>=tradingprice>lev["levelDetails"]["level"] - 25 and lev["status"] == "Active"):
+            return placeOrder(tradingprice, istToken, "PE",lev)
+        
         if lev["levelDetails"]["type"] == "resistance" and lev["levelDetails"]["level"]-10<tradingprice<lev["levelDetails"]["level"]:
-            resistance.append(lev)
+            return placeOrder(tradingprice, istToken, "PE",lev)
     
     print(support,'supportttttttt',resistance,'resistanceeeeeeeee')
 
     return
 
 def checkSupResStatus(level, indexAt):
+    print("checkSupResStatus function calllll",level,indexAt)
     current_time = datetime.now().time()
     lev = level["levelDetails"]["level"]
     collection = db["levels"]
+    # change firstFiveMin to normal support after 25 min of starting the market
     if indexAt >= (lev + 35):
         res = collection.update_one(
             {
@@ -85,6 +103,7 @@ def checkSupResStatus(level, indexAt):
         res = collection.update_one(
             {
                 "id": level["id"],
+                "interchangable": True,
                 "levelDetails.type": "resistance"
             },
             {
@@ -104,9 +123,13 @@ def checkSupResStatus(level, indexAt):
                     "levelDetails.interChanged": True
                 }
             })
-    if "lastTradeTime" in lev:
-        targetTime = lev["lastTradeTime"] + timedelta(minutes=3)
-        if current_time > targetTime and lev["status"] == "Passive":
+    
+    # val = level["lastTradeTime"]
+    # print(val,"value of lastTradeTime")
+    if "lastTradeTime" in level:
+        targetTime = level["lastTradeTime"] + timedelta(minutes=3)
+        print(targetTime,"from check supRes lastTradeTime")
+        if current_time > targetTime and level["status"] == "Passive":
             collection.update_one(
             {
                 "id":lev["id"]
@@ -114,6 +137,117 @@ def checkSupResStatus(level, indexAt):
             {
                 "$set":{"status":"Active"}
             })
+    tradeResult = level["tradeResults"]
+    if level["levelDetails"]["testCount"] >= 3 and tradeResult[len(tradeResult)-1]["result"] == "Loss":
+        collection.update_one(
+            {
+                "id":lev["id"]
+            },
+            {
+                "$set":{"status":"Closed"}
+            })
+    # change support to active after level reached sup + 10 to active and place order at sup + 20
+    if tradeResult[len(tradeResult)-1]["result"] == "Loss" and lev < indexAt  <= lev + 10 :
+        collection.update_one(
+            {
+                "id":lev["id"],
+                "levelDetails.type": "support"
+            },
+            {
+                "$set":{
+                    "status": "Active",
+                    "levelDetails.type": "testedSup"
+                }
+            })
+    if tradeResult[len(tradeResult)-1]["result"] == "Loss" and lev - 10 > indexAt  >= lev :
+        collection.update_one(
+            {
+                "id":lev["id"],
+                "levelDetails.type": "resistance"
+            },
+            {
+                "$set":{
+                    "status": "Active",
+                    "levelDetails.type": "testedRes"
+                }
+            })
+    if tradeResult[len(tradeResult)-1]["result"] == "Profit" and level["levelDetails"]["type"] == "testedRes":
+        collection.update_one(
+            {
+                "id":lev["id"],
+                "levelDetails.type": "testedRes"
+            },
+            {
+                "$set":{
+                    "status": "Active",
+                    "levelDetails.type": "resistance"
+                }
+            })
+        collection.update_one(
+            {
+                "id":lev["id"],
+                "levelDetails.type": "testedSup"
+            },
+            {
+                "$set":{
+                    "status": "Active",
+                    "levelDetails.type": "support"
+                }
+            })
+    conditionTime = datetime.strptime("9:45", "%H:%M").time()
+    if current_time > conditionTime and (trend == "SIDEWAYS" or trend == "BULLISH") and (level["levelDetails"]["type"] == "fiveMinRes" or level["levelDetails"]["type"] == "fiveMinSup") and indexAt >= (lev + 15):
+       
+        collection.update_one(
+            {
+                "id":lev["id"],
+            },
+            {
+                "$set":{
+                    "status": "Active",
+                    "levelDetails.type": "support"
+                }
+            })
+    
+    if current_time > conditionTime and (trend == "SIDEWAYS" or trend == "BEARISH") and (level["levelDetails"]["type"] == "fiveMinRes" or level["levelDetails"]["type"] == "fiveMinSup") and indexAt <= (lev - 15):
+       
+        collection.update_one(
+            {
+                "id":lev["id"],
+            },
+            {
+                "$set":{
+                    "status": "Active",
+                    "levelDetails.type": "resistance"
+                }
+            })
+        # trend == "BULLISH" indexAt <= (lev - 15)
+    
+    if current_time > conditionTime and (trend == "BULLISH") and (level["levelDetails"]["type"] == "fiveMinRes" or level["levelDetails"]["type"] == "fiveMinSup") and indexAt <= (lev - 15):
+       
+        collection.update_one(
+            {
+                "id":lev["id"],
+            },
+            {
+                "$set":{
+                    "status": "Passive",
+                    "levelDetails.type": "support"
+                }
+            })
+        
+    if current_time > conditionTime and (trend == "BEARISH") and (level["levelDetails"]["type"] == "fiveMinRes" or level["levelDetails"]["type"] == "fiveMinSup") and indexAt >= (lev + 15):
+       
+        collection.update_one(
+            {
+                "id":lev["id"],
+            },
+            {
+                "$set":{
+                    "status": "Passive",
+                    "levelDetails.type": "resistance"
+                }
+            })
+    
     return
 
 def placeOrder(price, token,type,level):
@@ -128,7 +262,7 @@ def placeOrder(price, token,type,level):
     strike = selectStrike(token,price,type)
     # orderId = placeBuyOrderMarketNSE("YESBANK",1)
     # orderData = orderHistory(orderId)
-    orderId = 1234
+    orderId  = random.randint(10000,99999)
     orderData = fakeOrder(price)
     orderTime = orderData[len(orderData)-1]['order_timestamp']
     purchasePrice = orderData[len(orderData)-1]['average_price']
@@ -145,6 +279,8 @@ def placeOrder(price, token,type,level):
         "price": orderData[len(orderData)-1]['average_price'],
         "executedAt": orderTime,
         "levelId": level["id"],
+        "levelStatus": level["status"],
+        "levelType": level["levelDetails.type"],
         "stopLoss": sl,
         "target": tar,
         "status": "Active"
@@ -172,8 +308,13 @@ def placeOrder(price, token,type,level):
 
 def checkTargetAndSL(data):
     print(data,'from checkTarget and sl')
-    collection = db["orders"]
-    result = collection.find({"parent_instrument_token" : 260105})
+    orderCollection = db["orders"]
+    result = orderCollection.find(
+        {
+            "parent_instrument_token" : 260105,
+            "status":{"$in":["Active","trailingSL"]}
+            }
+        )
     # print(result)
     result = list(result)
     print(result,'resultttttttt')
@@ -188,7 +329,7 @@ def checkTargetAndSL(data):
         # Add LOGIC IF IT STAYS AT LEAST AFTER 3 MINS
         if(purchasePrice <= currentPrice):
             print("TRAIL stpLss HERE TILL PURCHASE PRICE")
-            collection.update_one(
+            orderCollection.update_one(
                 {
                     "indexName" : "BANKNIFTY",
                     "status": "Active"
@@ -220,7 +361,7 @@ def checkTargetAndSL(data):
                 "executedAt": orderTime,
                 "status": "Closed"
             }
-            collection.update_one({
+            orderCollection.update_one({
                 "indexName" : "BANKNIFTY"
             }, {
                 "$set": {
@@ -235,8 +376,8 @@ def checkTargetAndSL(data):
             if tradeResult == "Loss":
                 status = "Passive"
 
-            collection = db["levels"]
-            collection.update_one(
+            levelCollection = db["levels"]
+            levelCollection.update_one(
                 {
                     "tradeResults":{"$eleMatch":{"orderId":orderId}},
                 },
@@ -246,6 +387,9 @@ def checkTargetAndSL(data):
                         "lastTradeTime": orderTime,
                         "tradeResults.$.result": tradeResult
                     }
+                },
+                {
+                    "$inc":{"levelDetails.testCount":1}
                 })
         print(stpLss, target,'sl and targettttttttt')
     return

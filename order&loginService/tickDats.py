@@ -6,17 +6,27 @@ from execOrder import *
 # accToken = 'U5NGn6cMfpgqrGr2RC0831YfVXLHzBln'
 # apiKey = 'k55bdfkr27eqguv6'
 # Temprory adding strike data for sl target function as of now tick data is being automatically being added for strike  3050241
-tokens = [260105]
+# tokens = [260105]
 # kws = KiteTicker(apiKey, accToken)
 client = ConnectDB()
 db = client['algoTrading']
 collection = db["userDetails"]
+tokens = [260105]
 user = collection.find_one({"name" : "SIDDHARTH LAHOTY"})
 # kws = KiteTicker(apiKey, accToken)
 kws = KiteTicker(user["apikey"],user["acc_token"])
 # counter = 0
 def on_ticks(ws, ticks,counter = 0):
+    tokens = [260105]
     print("on tick called")
+    orderCollection = db["orders"]
+    activeStike = orderCollection.find({"status":{"$in":["Active","trailingSL"]}},{"instrument_token":1,"_id":0})
+    activeStikeList = list(activeStike)
+    print(activeStikeList,"activeStrikeList")
+    strikeArr = []
+    for strike in activeStikeList:
+        if strike["instrument_token"] not in tokens:
+            tokens.insert(len(tokens),strike["instrument_token"])
     # CurrentDateTime = datetime.datet
     # CurrentTime = datetime.time(CurrentDateTime.hour, CurrentDateTime.minute, CurrentDateTime.second)
     # endtime = datetime.time(14, 23, 0)
@@ -25,29 +35,35 @@ def on_ticks(ws, ticks,counter = 0):
     #     kws.unsubscribe(tokens)
     #     kws.close()
         # raise SystemExit
-    
-    for index, scripdata in enumerate(ticks):
+    print(tokens,"tokenssssss")
+    kws.subscribe(tokens)
+    kws.set_mode(kws.MODE_LTP,tokens)
+    for scripdata in ticks:
        
-        # print(scripdata, scripdata['last_price'])
+       
+        print(scripdata, scripdata['last_price'])
         
         listScript = []
         listScript.insert(0,scripdata)
-        # print(tokens,'beofr iffffffffff',index)
-        # print(scripdata)
+        print(tokens,'beofr iffffffffff')
+        print(scripdata)
         isorderPlaced = fetchData(scripdata)
-        # print(isorderPlaced,'is order placed',len(tokens),tokens)
+        # print(isorderPlaced,"isOrderPlaceddddd")
+        print(isorderPlaced,'is order placed',len(tokens),tokens)
         # and condition is temprory removve it after including time condition
-        if(isorderPlaced != False and len(tokens) == 1 and isorderPlaced != None):
-            print('hiii if condition satisfied')
-            tokens.append(isorderPlaced)
-            print(tokens,'inside ifffffffffffff')
-            kws.subscribe(tokens)
-            kws.set_mode(kws.MODE_LTP,tokens)
+        # if(isorderPlaced != False and len(tokens) == 1 and isorderPlaced != None):
+        #     print('hiii if condition satisfied')
+        #     tokens.append(isorderPlaced)
+        #     print(tokens,'inside ifffffffffffff')
+        #     kws.subscribe(tokens)
+        #     kws.set_mode(kws.MODE_LTP,tokens)
         
         
 
 def on_connect(ws, response): 
+    
     # print("on connect called") 
+    print(tokens,"strikessssss")
     ws.subscribe(tokens)
     #ws.set_mode(ws.MODE_FULL, tokens)
     ws.set_mode(ws.MODE_LTP, tokens)

@@ -9,10 +9,9 @@ class suResontroller {
             console.log(result,'resultttttt')
             res.status(200).send(result)
         }catch(err){
-            let errorObj = {
-                msg: "Duplicate Entry"
-            }
-            res.status(500).send(errorObj)
+            console.log(err)
+            
+            res.status(500).send(err)
         }
     }
 

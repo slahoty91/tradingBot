@@ -33,11 +33,12 @@ def placeBuyOrderMarketNSE(tradingsymbol, qty):
 
 # PlaceBuyOrderMarketNSE("SBIN",1)
 
-def fakeOrder(price):
+def fakeOrder(price,strike):
     obj = [{
 	
-        "order_timestamp" : datetime.now().time(),
+        "order_timestamp" : datetime.now(),
         "average_price" : price,
+        "strike": strike
     }]
     return obj
 
@@ -106,10 +107,11 @@ def orderHistory(orderId):
     except Exception as e:
         print("Order history failed{}".format(e))
 
-# ord = orderHistory(230529500203696)
+# ord = orderHistory(230608601326624)
 # print(ord[4],'orddddddd',len(ord))
-# time = ord[4]['exchange_timestamp']
-# print(time.strftime("%Y-%m-%d %H:%M:%S"))
+# time = ord[4]['order_timestamp']
+# print(time)
+# print(time.strftime("%Y-%m-%d %H:%M:%S"),datetime.now())
 # for h in his:
 #     print(h['order_timestamp'])
 # PlaceSellOrderMarketNFO("BANKNIFTY23MAY43700CE",25)

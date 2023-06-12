@@ -3,6 +3,14 @@ const surResModel = require("../model/supResModel")
 
 module.exports.addSuppRes = async (data)=>{
     try{
+        ct = []
+        ct = await surResModel.find({"levelDetails.level": data.levelDetails.level})
+        console.log(ct,"ctttttt")
+        if (ct.length > 0){
+            return {
+                msg: `Level already their with ID ${ct[0].id}`
+            }
+        }
         console.log(data,'data from sup res service')
         let result = await instrumentNSE.findOne({
             "name": data.name
@@ -22,6 +30,7 @@ module.exports.addSuppRes = async (data)=>{
         console.log(count,"counttttttttttttt")
         obj.id = `Level-0${count+1}`
         obj.name = result.name
+        obj.status = data.status == "Active"? data.status : "Passive"
         obj.instrument_token = result.instrument_token
         obj.tradingsymbol = result.tradingsymbol
         obj.levelDetails.level = data.levelDetails.level

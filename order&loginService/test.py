@@ -48,6 +48,8 @@
 import random
 from datetime import datetime, time, timedelta
 
+from bson import BSON
+
 # num = random.randint(10000,99999)
 # print(num)
 # start_time = datetime(2023, 6, 5, 10, 30)  # 10:30 AM
@@ -73,8 +75,28 @@ from datetime import datetime, time, timedelta
 # if current_time > stored_time:
 #     print("hiiii")
 
-trendSch = {
-    "up":"BULLISH",
+# trendSch = {
+#     "up":"BULLISH",
 
-}
-print(trendSch)
+# }
+# print(trendSch)
+
+# level = {'id': 'Level-08', 'name': 'NIFTY BANK', 'tradingsymbol': 'NIFTY BANK', 'interchangable': False, 'status': 'Active', 'instrument_token': 260105, 'levelDetails': {'level': 44212.0, 'type': 'fiveMinSup', 'testCount': 0, 'interChanged': False}}
+
+# if hasattr(level,"tradeResults"):
+#     tradeResult = level["tradeResults"]
+#     print(tradeResult,"tradeResulttttttttt")
+# else:
+#     print("notttttt")
+# obj = {'orderId': 57725, 'instrument_token': 12833794, 'parent_instrument_token': 260105, 'indexAt': 44414.9, 'strike': 'BANKNIFTY2360144400CE', 'indexName': 'BANKNIFTY', 'price': 44414.9, 'executedAt': datetime.time(11, 20, 26, 791789), 'levelId': 'Level-07', 'levelStatus': 'Active', 'levelType': 'support', 'stopLoss': 43526.602, 'target': 51077.135, 'status': 'Active'}
+
+# my_time_str = obj['executedAt'].strftime("%H:%M:%S.%f") 
+# print(my_time_str)
+# bson_data = BSON.encode({'time': my_time_str})
+# print(bson_data,"bson data")
+from mongo import ConnectDB
+client = ConnectDB()
+db = client["algoTrading"]
+collection = db["orders"]
+status = collection.find_one({"indexName" : "IFTY","status":"Active"},{"status":1,"_id":0})
+print(status)

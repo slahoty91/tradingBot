@@ -38,9 +38,10 @@ def fetchData(data):
             return checkCondition(data['last_price'], data['instrument_token'],levels)
 
         if data["instrument_token"] not in indexTokens:
-            checkTargetAndSL(data)
+            
             if testing == True:
                 updateSlTarForTesting(data)
+        return checkTargetAndSL(data)
             
         
     return False
@@ -67,7 +68,7 @@ def updateSlTarForTesting(data):
     return
 
 def checkCondition(tradingprice,istToken,levels):
-    print("check Condition called")
+    print("check Condition called",istToken)
     current_time = datetime.now().time()
     conditionTime = datetime.strptime("9:30", "%H:%M").time()
     startSwing = datetime.strptime("9:25", "%H:%M").time()
@@ -77,10 +78,10 @@ def checkCondition(tradingprice,istToken,levels):
         # Add tiem bound condition
         if current_time <= conditionTime:
 
-            if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice + 10 >lev["levelDetails"]["level"] and lev["status"] == "Active"):
+            if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice + 10 >lev["levelDetails"]["level"] and lev["status"] == "Active") and trend != "BEARISH":
                 return placeOrder(tradingprice, istToken, "CE",lev)
             
-            if (lev["levelDetails"]["type"] == "fiveMinSup" and tradingprice - 10 < lev["levelDetails"]["level"] and lev["status"] == "Active"):
+            if (lev["levelDetails"]["type"] == "fiveMinSup" and tradingprice - 10 < lev["levelDetails"]["level"] and lev["status"] == "Active") and trend != "BULLISH":
                 return placeOrder(tradingprice, istToken, "PE",lev)
 
         if current_time >= startSwing:
@@ -101,14 +102,14 @@ def checkCondition(tradingprice,istToken,levels):
         if current_time > exitTime:
             return exitOrder()
 
-    return
+    return False
 
 def placeOrder(price, token,type,level):
 
     collection = db["orders"]
     status = collection.find_one({
-        "parent_instrument_token" : token,
-        "type": type,
+        # "parent_instrument_token" : token,
+        # "type": type,
         "status":{
             "$in":["Active","trailingSL"]
         }},
@@ -118,6 +119,7 @@ def placeOrder(price, token,type,level):
     # for now do one trade at a time
     print(status,"statuss from place order")
     if status == None :
+
         strike = selectStrike(token,price,type)
         # orderId = placeBuyOrderMarketNSE("YESBANK",1)
         # orderData = orderHistory(orderId)
@@ -170,9 +172,11 @@ def placeOrder(price, token,type,level):
             SendMsg(msg)
 
         return strike[2]
+    
+    return False
 
 def checkTargetAndSL(data):
-    # print(data,'from checkTarget and sl')
+    print(data,'from checkTarget and sl')
     orderCollection = db["orders"]
     result = orderCollection.find(
         {
@@ -270,7 +274,9 @@ def checkTargetAndSL(data):
                 print(msg,"msggggggggggggggggg")
                 SendMsg(msg)
             
-    return
+            return (data["instrument_token"],"SELL ORDER")
+            
+    return False
 
 
 
@@ -348,41 +354,77 @@ def firstFiveMin(data,endT,curT):
         print(res.acknowledged,res.matched_count,"first five min modification")
     return
 
-def selectStrikePrice(ltp):
+def selectStrikePrice(ltp,name,type):
         
-    str = (ltp / 100)
-    sel = (ltp % 100)
-    str = int(str)
-    if sel > 50:
-        str = str + 1
-    str = (str * 100)
-    return str
+    if name == "NIFTY 50" and type == "CE":
+        str = (ltp / 50)
+        sel = (ltp % 50)
+        str = int(str)
+        if sel > 50:
+            str = str + 1
+        str = (str * 50)
+        return str
+    
+    if name == "NIFTY 50" and type == "PE":
+        str = (ltp / 50)
+        sel = (ltp % 50)
+        str = int(str)
+        if sel < 50:
+            str = str + 1
+        str = (str * 50)
+        return str
+    
+    if (name == "NIFTY BANK" or name == "NIFTY FIN SERVICE") and type == "CE":
+        str = (ltp / 100)
+        sel = (ltp % 100)
+        str = int(str)
+        if sel > 100:
+            str = str + 1
+        str = (str * 100)
+        return str
+    
+    if (name == "NIFTY BANK" or name == "NIFTY FIN SERVICE") and type == "PE":
+        str = (ltp / 100)
+        sel = (ltp % 100)
+        str = int(str)
+        if sel < 100:
+            str = str + 1
+        str = (str * 100)
+        return str
 
 
 def selectStrike(instrument_token, ltp, type):
+
+    name = ""
     if instrument_token == 260105:
-        name = "BANKNIFTY"
-        strike = selectStrikePrice(ltp)
-        collection = db["instrumentNFO"]
-        query = {
-            "name": name,
-            "strike": strike,
-            "instrument_type": type,
-            "expiry": expiry
-        }
-        projection = {
-            "instrument_token": 1,
-            "tradingsymbol": 1,
-            "_id": 0
-        }
-        # print(query)
-        result = collection.find_one(query, projection)
-        symbol = result["tradingsymbol"]
-        strikeToken = result["instrument_token"]
-        return (symbol,name,strikeToken)
+        name = "NIFTY BANK"
+    
+    if instrument_token == 256265:
+        name = "NIFTY 50"
+
+    if instrument_token == 257801:
+        name = "NIFTY FIN SERVICE"
+
+    strike = selectStrikePrice(ltp,name,type)
+    collection = db["instrumentNFO"]
+    query = {
+        "name": name,
+        "strike": strike,
+        "instrument_type": type,
+        "expiry": expiry
+    }
+    projection = {
+        "instrument_token": 1,
+        "tradingsymbol": 1,
+        "_id": 0
+    }
+    # print(query)
+    result = collection.find_one(query, projection)
+    symbol = result["tradingsymbol"]
+    strikeToken = result["instrument_token"]
+    return (symbol,name,strikeToken)
 
 
-# selectStrikePrice(40720)
 def exitOrder():
     orderCollection = db["orders"]
     orders = orderCollection.find({"status": "Active"})

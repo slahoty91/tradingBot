@@ -11,12 +11,13 @@ from execOrder import *
 client = ConnectDB()
 db = client['algoTrading']
 collection = db["userDetails"]
-tokens = [260105]
+tokens = [260105,256265,257801]
 user = collection.find_one({"name" : "SIDDHARTH LAHOTY"})
 # kws = KiteTicker(apiKey, accToken)
 kws = KiteTicker(user["apikey"],user["acc_token"])
 # counter = 0
 def on_ticks(ws, ticks,counter = 0):
+    
     tokens = [260105,256265,257801]
     print("on tick called")
     orderCollection = db["orders"]
@@ -25,16 +26,27 @@ def on_ticks(ws, ticks,counter = 0):
     for strike in activeStikeList:
         if strike["instrument_token"] not in tokens:
             tokens.insert(len(tokens),strike["instrument_token"])
+    
+    inactiveStrike = orderCollection.find({"status":"Closed"},{"instrument_token":1,"_id":0})
+    inactiveStrike = list(inactiveStrike)
+    print(inactiveStrike,"inactive strikeeeeee")
+    str = list()
+    for strike in inactiveStrike:
+        str.insert(0,strike["instrument_token"])
+    kws.unsubscribe(str)
     print(tokens,"tokenssssss")
 
     kws.subscribe(tokens)
     kws.set_mode(kws.MODE_LTP,tokens)
+    
     for scripdata in ticks:
 
         listScript = []
         listScript.insert(0,scripdata)
         isorderPlaced = fetchData(scripdata)
+
         print(isorderPlaced,'is order placed',len(tokens),tokens)
+        
         
         
 

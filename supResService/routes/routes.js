@@ -11,5 +11,6 @@ Router.route('/updateStatus')
 
 Router.route('/getLevels')
     .get(contObj.getLevels)
+    
 
 module.exports = Router

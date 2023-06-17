@@ -55,14 +55,22 @@ module.exports.updateStatus = async (data) => {
             "id": data.id
         }
         let updateObj = {
+            
             "status": data.status,
             "levelDetails": {
-                "type": "NA"
+                "level":0,
+                "type": "NA",
+                "testCount":0,
+                "interChanged": false
             }
         }
-        let re = await surResModel.findOne({id:data.id},{"levelDetails.type": 1, "_id":0})
-        console.log(re.levelDetails.type,"reeeeeee")
+        let re = await surResModel.findOne({id:data.id},{"levelDetails": 1, "_id":0})
+        console.log(re,"reeeeeee")
+        updateObj.levelDetails.level = re.levelDetails.level
+        updateObj.levelDetails.testCount = re.levelDetails.testCount
+        updateObj.levelDetails.interChanged = re.levelDetails.interChanged
         if (data.interchange == false){
+            console.log(re.levelDetails.type,"reeeeeee","from false")
             updateObj.levelDetails.type = re.levelDetails.type
         }
         if (data.interchange == true){

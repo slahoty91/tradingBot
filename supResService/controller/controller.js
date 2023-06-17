@@ -19,7 +19,10 @@ class suResontroller {
         console.log("update status called")
         try{
             let obj = req.body
-            console.log(obj)
+            console.log(obj,"object",obj.interchange)
+            if (obj.interchange == undefined){
+                return res.send("NEED INTERCHANGE FLAGE")
+            }
             let result = await updateStatus(obj)
             res.send(result)
         }catch(err){
@@ -31,7 +34,7 @@ class suResontroller {
         try{
             console.log("get levels called")
             let object = req.query
-            console.log(object,"object")
+            
             let result = await getLevels(object)
             res.send(result)
         }catch(err){

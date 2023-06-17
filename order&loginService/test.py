@@ -129,6 +129,46 @@ from bson import BSON
 # from sendTelegramMsg import SendMsg
 
 # SendMsg("hiiii")
-tt = "hiiiii"
+# tt = "hiiiii"
 
-print(str(tt))
+# print(str(tt))
+
+def selectStrikePrice(ltp,type,order):
+    
+    if type == "NIFTY" and order == "CE":
+        str = (ltp / 50)
+        sel = (ltp % 50)
+        str = int(str)
+        if sel > 50:
+            str = str + 1
+        str = (str * 50)
+        return str
+    
+    if type == "NIFTY" and order == "PE":
+        str = (ltp / 50)
+        sel = (ltp % 50)
+        str = int(str)
+        if sel < 50:
+            str = str + 1
+        str = (str * 50)
+        return str
+    
+    if (type == "BANKNIFTY" or type == "FIN NIFTY") and order == "CE":
+        str = (ltp / 100)
+        sel = (ltp % 100)
+        str = int(str)
+        if sel > 100:
+            str = str + 1
+        str = (str * 100)
+        return str
+    
+    if (type == "BANKNIFTY" or type == "FIN NIFTY") and order == "PE":
+        str = (ltp / 100)
+        sel = (ltp % 100)
+        str = int(str)
+        if sel < 100:
+            str = str + 1
+        str = (str * 100)
+        return str
+
+print(selectStrikePrice(19060.0,"NIFTY","CE"))

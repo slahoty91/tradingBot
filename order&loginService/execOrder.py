@@ -2,21 +2,26 @@ from datetime import datetime, time, timedelta
 import random
 from mongo import *
 from order import placeBuyOrderMarketNSE, orderHistory, PlaceSellOrderMarketNSE, fakeOrder
+from sendTelegramMsg import SendMsg
 
 # support = [43583,4000]
 # resistance = [43682,44360]
-expiry = "2023-06-15"
+expiry = "2023-06-22"
 target = 15
-stoppLoss = 2
+stoppLoss = 5
 client = ConnectDB()
 db = client["algoTrading"]
 
 curTime = datetime
-start_time = datetime.strptime("9:15", "%H:%M").time()
+start_time = datetime.strptime("9:15:5", "%H:%M:%S").time()
 end_time = datetime.strptime("9:20", "%H:%M").time()
 firstFiveMinCounter = 0
 # trend  "BULLISH", "BEARISH", "SIDEWAYS"
 trend = "SIDEWAYS"
+testing = True
+# Index tokens
+indexTokens = [260105,256265,257801]
+
 
 def fetchData(data):
 
@@ -24,15 +29,20 @@ def fetchData(data):
     current_time = datetime.now().time()
     if start_time <= current_time <= end_time:
         firstFiveMin(data,end_time,current_time)
-    else:
+    if current_time > end_time:
         collection = db["levels"]
         levels = collection.find({"instrument_token" : data["instrument_token"],"status":{"$ne":"Closed"}})
         levels = list(levels)
-        if data["instrument_token"] != 260105:
-            updateSlTarForTesting(data)
-            checkTargetAndSL(data)
-        if data['instrument_token'] == 260105:
+
+        if data['instrument_token'] in indexTokens :
             return checkCondition(data['last_price'], data['instrument_token'],levels)
+
+        if data["instrument_token"] not in indexTokens:
+            checkTargetAndSL(data)
+            if testing == True:
+                updateSlTarForTesting(data)
+            
+        
     return False
 
 def updateSlTarForTesting(data):
@@ -57,221 +67,48 @@ def updateSlTarForTesting(data):
     return
 
 def checkCondition(tradingprice,istToken,levels):
-
+    print("check Condition called")
     current_time = datetime.now().time()
-    conditionTime = datetime.strptime("9:35", "%H:%M").time()
+    conditionTime = datetime.strptime("9:30", "%H:%M").time()
+    startSwing = datetime.strptime("9:25", "%H:%M").time()
     exitTime = datetime.strptime("15:20","%H:%M").time()
     for lev in levels:
-        checkSupResStatus(lev,tradingprice)
+        # checkSupResStatus(lev,tradingprice)
         # Add tiem bound condition
         if current_time <= conditionTime:
 
-            if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice >lev["levelDetails"]["level"] and lev["status"] == "Active" and (trend == "BULLISH" or trend == "SIDEWAYS")):
+            if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice + 10 >lev["levelDetails"]["level"] and lev["status"] == "Active"):
                 return placeOrder(tradingprice, istToken, "CE",lev)
             
-            if (lev["levelDetails"]["type"] == "fiveMinSup" and tradingprice < lev["levelDetails"]["level"] and lev["status"] == "Active" and (trend == "BEARISH" or trend == "SIDEWAYS")):
+            if (lev["levelDetails"]["type"] == "fiveMinSup" and tradingprice - 10 < lev["levelDetails"]["level"] and lev["status"] == "Active"):
                 return placeOrder(tradingprice, istToken, "PE",lev)
 
-        if (lev["levelDetails"]["type"] == "support") and lev["levelDetails"]["level"]<tradingprice<lev["levelDetails"]["level"]+10 and lev["status"] == "Active":
-            return placeOrder(tradingprice, istToken, "CE",lev)
-        
-        if (lev["levelDetails"]["type"] == "testedSup" and lev["levelDetails"]["level"] + 25<=tradingprice<lev["levelDetails"]["level"] + 35 and lev["status"] == "Active"):
-            return placeOrder(tradingprice, istToken, "CE",lev)
-        
-        if (lev["levelDetails"]["type"] == "testedRes" and lev["levelDetails"]["level"] - 35>=tradingprice>lev["levelDetails"]["level"] - 25 and lev["status"] == "Active"):
-            return placeOrder(tradingprice, istToken, "PE",lev)
-        
-        if lev["levelDetails"]["type"] == "resistance" and lev["levelDetails"]["level"]-10<tradingprice<lev["levelDetails"]["level"]:
-            return placeOrder(tradingprice, istToken, "PE",lev)
+        if current_time >= startSwing:
+
+            if (lev["levelDetails"]["type"] == "support") and lev["levelDetails"]["level"]<tradingprice<lev["levelDetails"]["level"]+10 and lev["status"] == "Active":
+                return placeOrder(tradingprice, istToken, "CE",lev)
+            
+            if lev["levelDetails"]["type"] == "resistance" and lev["levelDetails"]["level"]-10<tradingprice<lev["levelDetails"]["level"] and lev["status"] == "Active":
+                return placeOrder(tradingprice, istToken, "PE",lev)
+            
+               
+            # if (lev["levelDetails"]["type"] == "testedSup" and lev["levelDetails"]["level"] + 25<=tradingprice<lev["levelDetails"]["level"] + 35 and lev["status"] == "Active"):
+            #     return placeOrder(tradingprice, istToken, "CE",lev)
+            
+            # if (lev["levelDetails"]["type"] == "testedRes" and lev["levelDetails"]["level"] - 35>=tradingprice>lev["levelDetails"]["level"] - 25 and lev["status"] == "Active"):
+            #     return placeOrder(tradingprice, istToken, "PE",lev)
 
         if current_time > exitTime:
             return exitOrder()
 
     return
 
-def checkSupResStatus(level, indexAt):
-    current_time = datetime.now().time()
-    lev = level["levelDetails"]["level"]
-    collection = db["levels"]
-    if indexAt >= (lev + 28):
-        res = collection.update_one(
-            {
-                "id": level["id"],
-                "levelDetails.type": "support"
-            },
-            {
-                "$set":{"status":"Active"}
-            })
-        
-        re = collection.update_one(
-            {
-                "id": level["id"],
-                "interchangable": True,
-                "levelDetails.type": "resistance"
-            },
-            {
-                "$set":{
-                    "status":"Active",
-                    "levelDetails.type": "support",
-                    "levelDetails.interChanged": True
-                }
-            })
-        
-
-    if indexAt <= (lev - 28):
-        res = collection.update_one(
-            {
-                "id": level["id"],
-                "interchangable": True,
-                "levelDetails.type": "resistance"
-            },
-            {
-                "$set":{"status":"Active"}
-            })
-        
-        re = collection.update_one(
-            {
-                "id": level["id"],
-                "interchangable": True,
-                "levelDetails.type": "support"
-            },
-            {
-                "$set":{
-                    "status":"Active",
-                    "levelDetails.type": "resistance",
-                    "levelDetails.interChanged": True
-                }
-            })
-    
-    if "lastTradeTime" in level:
-        targetTime = level["lastTradeTime"] + timedelta(minutes=3)
-        if current_time > targetTime and level["status"] == "Passive":
-            collection.update_one(
-            {
-                "id":level["id"]
-            },
-            {
-                "$set":{"status":"Active"}
-            })
-    conditionTime = datetime.strptime("9:35", "%H:%M").time()
-    if current_time > conditionTime and (trend == "SIDEWAYS" or trend == "BULLISH") and (level["levelDetails"]["type"] == "fiveMinRes" or level["levelDetails"]["type"] == "fiveMinSup") and indexAt >= (lev + 15):
-        collection.update_one(
-            {
-                "id":level["id"],
-            },
-            {
-                "$set":{
-                    "status": "Active",
-                    "levelDetails.type": "support"
-                }
-            })
-    
-    if current_time > conditionTime and (trend == "SIDEWAYS" or trend == "BEARISH") and (level["levelDetails"]["type"] == "fiveMinRes" or level["levelDetails"]["type"] == "fiveMinSup") and indexAt <= (lev - 15):
-       
-        collection.update_one(
-            {
-                "id":level["id"],
-            },
-            {
-                "$set":{
-                    "status": "Active",
-                    "levelDetails.type": "resistance"
-                }
-            })
-        # trend == "BULLISH" indexAt <= (lev - 15)
-    
-    if current_time > conditionTime and (trend == "BULLISH") and (level["levelDetails"]["type"] == "fiveMinRes" or level["levelDetails"]["type"] == "fiveMinSup") and indexAt <= (lev - 15):
-       
-        collection.update_one(
-            {
-                "id":level["id"],
-            },
-            {
-                "$set":{
-                    "status": "Passive",
-                    "levelDetails.type": "support"
-                }
-            })
-        
-    if current_time > conditionTime and (trend == "BEARISH") and (level["levelDetails"]["type"] == "fiveMinRes" or level["levelDetails"]["type"] == "fiveMinSup") and indexAt >= (lev + 15):
-       
-        collection.update_one(
-            {
-                "id":level["id"],
-            },
-            {
-                "$set":{
-                    "status": "Passive",
-                    "levelDetails.type": "resistance"
-                }
-            })
-    if hasattr(level,"tradeResults"):
-        tradeResult = level["tradeResults"]   
-        if level["levelDetails"]["testCount"] >= 3 and tradeResult[len(tradeResult)-1]["result"] == "Loss":
-            collection.update_one(
-                {
-                    "id":level["id"]
-                },
-                {
-                    "$set":{"status":"Closed"}
-                })
-        # change support to active after level reached sup + 10 to active and place order at sup + 20
-        if tradeResult[len(tradeResult)-1]["result"] == "Loss" and lev < indexAt  <= lev + 10 :
-            collection.update_one(
-                {
-                    "id":level["id"],
-                    "levelDetails.type": "support"
-                },
-                {
-                    "$set":{
-                        "status": "Active",
-                        "levelDetails.type": "testedSup"
-                    }
-                })
-        if tradeResult[len(tradeResult)-1]["result"] == "Loss" and lev - 10 > indexAt  >= lev :
-            collection.update_one(
-                {
-                    "id":level["id"],
-                    "levelDetails.type": "resistance"
-                },
-                {
-                    "$set":{
-                        "status": "Active",
-                        "levelDetails.type": "testedRes"
-                    }
-                })
-        if tradeResult[len(tradeResult)-1]["result"] == "Profit" and level["levelDetails"]["type"] == "testedRes":
-            collection.update_one(
-                {
-                    "id":level["id"],
-                    "levelDetails.type": "testedRes"
-                },
-                {
-                    "$set":{
-                        "status": "Active",
-                        "levelDetails.type": "resistance"
-                    }
-                })
-            collection.update_one(
-                {
-                    "id":level["id"],
-                    "levelDetails.type": "testedSup"
-                },
-                {
-                    "$set":{
-                        "status": "Active",
-                        "levelDetails.type": "support"
-                    }
-                })
-    
-    
-    return
-
 def placeOrder(price, token,type,level):
 
     collection = db["orders"]
     status = collection.find_one({
-        "indexName" : "BANKNIFTY",
+        "parent_instrument_token" : token,
+        "type": type,
         "status":{
             "$in":["Active","trailingSL"]
         }},
@@ -294,6 +131,7 @@ def placeOrder(price, token,type,level):
             # "orderId":orderId,
             "orderId": orderId,
             "instrument_token": strike[2],
+            "type": type,
             "parent_instrument_token": token,
             "indexAt": price,
             "strike": strike[0],
@@ -319,10 +157,18 @@ def placeOrder(price, token,type,level):
                     "status": "Intrade",
                 },
                 "$push":{
-                    "tradeResults":{"orderId":orderId}
+                    "tradeResults":{
+                        "orderId":orderId,
+                        "result": "NA"
+                        }
                 },
                 "$inc": {"levelDetails.testCount": 1}
             })
+        # Don't forget to update after introducing real money
+        if testing == False:
+            msg = "Order placed " + str(orderId) + " is placed at "+ str(price)+ " with strike,"+ str(strike[0]) + " and purchase price "+ str(purchasePrice) +" stoploss "+ str(sl) +" target "+ str(tar)
+            SendMsg(msg)
+
         return strike[2]
 
 def checkTargetAndSL(data):
@@ -330,7 +176,7 @@ def checkTargetAndSL(data):
     orderCollection = db["orders"]
     result = orderCollection.find(
         {
-            "parent_instrument_token" : 260105,
+            "instrument_token" : data["instrument_token"],
             "status":{"$in":["Active","trailingSL"]}
             }
         )
@@ -341,20 +187,24 @@ def checkTargetAndSL(data):
         target = result[0]["target"]
         purchasePrice = result[0]["price"]
         currentPrice = data["last_price"]
-        trailsSLtrigger = purchasePrice + (purchasePrice*stoppLoss/100)
+        trailsSLtrigger = purchasePrice + (purchasePrice*3/100)
         if(trailsSLtrigger <= currentPrice):
-            orderCollection.update_one(
+            resultOrder = orderCollection.update_one(
                 {
-                    "indexName" : "BANKNIFTY",
+                    "instrument_token" : data["instrument_token"],
                     "status": "Active"
                 },
                 {
                     "$set":{
                         "stopLoss":purchasePrice,
+                        "stopLossTrailed":True,
                         "status":"trailingSL"
                         },
                     
                 })
+            if resultOrder.modified_count >0:
+                msg = "SL Updated with for oreder id " + str(result[0]["orderId"])
+                SendMsg(msg)
         print(target,data["last_price"],stpLss,"from checkTarget and sl")
         if (stpLss >= data["last_price"] or target <= data["last_price"]):
             print("sell order called")
@@ -363,7 +213,7 @@ def checkTargetAndSL(data):
             orderData = fakeOrder(data["last_price"],result[0]["strike"])
             orderTime = orderData[len(orderData)-1]['order_timestamp'].strftime("%H:%M:%S.%f")
             sellPrice = orderData[len(orderData)-1]['average_price']
-            trade = ((purchasePrice - sellPrice)/purchasePrice)*100
+            trade = -purchasePrice + sellPrice
             tradeResult = ""
             if purchasePrice >= sellPrice:
                 tradeResult = "Loss"
@@ -379,6 +229,7 @@ def checkTargetAndSL(data):
                 "status": "Closed"
             }
             print(obj,"objjjjj sell order")
+            # order = orderCollection.find_one({})
             orderRes = orderCollection.update_one({
                 "instrument_token": data["instrument_token"],
                 "status": {"$in":["Active","trailingSL"]}
@@ -386,7 +237,7 @@ def checkTargetAndSL(data):
                 "$set": {
                     "sellOrder": obj,
                     "tradeResult": tradeResult,
-                    "pecentageBooked": trade,
+                    "bookedAmount": trade,
                     "status": "Closed",
                     }
             })
@@ -406,12 +257,18 @@ def checkTargetAndSL(data):
                     },
                     "$inc":{"levelDetails.testCount":1}
                 }
-            # print(filterObj,updateObj,"<<<<<updateObj")
+            print(filterObj,updateObj,"<<<<<updateObj")
             levelRes = levelCollection.update_one(
                 filterObj,
                 updateObj
                 )
             print(levelRes.modified_count,levelRes.acknowledged,"levelRes")
+            # Send msg for trade closing
+            
+            if orderRes.acknowledged:
+                msg = "Trade closed with order id "+str(orderId)+", trade result as " + tradeResult + " and booked amout as " + str(trade)
+                print(msg,"msggggggggggggggggg")
+                SendMsg(msg)
             
     return
 
@@ -438,6 +295,7 @@ def firstFiveMin(data,endT,curT):
         upperVal = val[len(val)-1]
         collection = db["levels"]
         count = collection.count_documents({})
+
         obj = [{
             "id": "Level-0"+str(count+1),
             "name" : "NIFTY BANK",
@@ -466,7 +324,6 @@ def firstFiveMin(data,endT,curT):
             "interChanged" : False
             }
         }]
-        # now save in support and resistance table
         collection = db["levels"]
         res = collection.insert_many(obj)
         filterObj = {
@@ -478,17 +335,17 @@ def firstFiveMin(data,endT,curT):
             {
                 "$set":{"status":"Active"}
             })
-        
+        print(re.acknowledged,re.matched_count,"first five min modification")
         filterObj = {
                 "levelDetails.type":"support",
                 "levelDetails.level":{"$lt":lowerVal["last_price"]}
             }
-        re = collection.update_many(
+        res = collection.update_many(
                 filterObj,
             {
                 "$set":{"status":"Active"}
             })
-        
+        print(res.acknowledged,res.matched_count,"first five min modification")
     return
 
 def selectStrikePrice(ltp):
@@ -536,3 +393,166 @@ def exitOrder():
     levelCollection = db["levels"]
     levelCollection.update_many({},{"$set":{"status":"Closed"}})
     return
+
+
+
+
+
+# CHANGING STATUS MANUALLY FOR NOW
+def checkSupResStatus(level, indexAt):
+    
+    lev = level["levelDetails"]["level"]
+    collection = db["levels"]
+    if (lev + 35) > indexAt >= (lev + 28):
+        
+        re = collection.update_one(
+            {
+                "id": level["id"],
+                "interchangable": True,
+                "levelDetails.type": "resistance"
+            },
+            {
+                "$set":{
+                    "status":"Active",
+                    "levelDetails.type": "support",
+                    "levelDetails.interChanged": True
+                }
+            })
+        
+
+    if (lev - 35)< indexAt <= (lev - 28):
+        
+        re = collection.update_one(
+            {
+                "id": level["id"],
+                "interchangable": True,
+                "levelDetails.type": "support"
+            },
+            {
+                "$set":{
+                    "status":"Active",
+                    "levelDetails.type": "resistance",
+                    "levelDetails.interChanged": True
+                }
+            })
+    
+    # conditionTime = datetime.strptime("9:35", "%H:%M").time()
+    # if current_time > conditionTime and (trend == "SIDEWAYS" or trend == "BULLISH") and (level["levelDetails"]["type"] == "fiveMinRes" or level["levelDetails"]["type"] == "fiveMinSup") and indexAt >= (lev + 15):
+    #     collection.update_one(
+    #         {
+    #             "id":level["id"],
+    #         },
+    #         {
+    #             "$set":{
+    #                 "status": "Active",
+    #                 "levelDetails.type": "support"
+    #             }
+    #         })
+    
+    # if current_time > conditionTime and (trend == "SIDEWAYS" or trend == "BEARISH") and (level["levelDetails"]["type"] == "fiveMinRes" or level["levelDetails"]["type"] == "fiveMinSup") and indexAt <= (lev - 15):
+       
+    #     collection.update_one(
+    #         {
+    #             "id":level["id"],
+    #         },
+    #         {
+    #             "$set":{
+    #                 "status": "Active",
+    #                 "levelDetails.type": "resistance"
+    #             }
+    #         })
+    #     # trend == "BULLISH" indexAt <= (lev - 15)
+    
+    # if current_time > conditionTime and (trend == "BULLISH") and (level["levelDetails"]["type"] == "fiveMinRes" or level["levelDetails"]["type"] == "fiveMinSup") and indexAt <= (lev - 15):
+       
+    #     collection.update_one(
+    #         {
+    #             "id":level["id"],
+    #         },
+    #         {
+    #             "$set":{
+    #                 "status": "Passive",
+    #                 "levelDetails.type": "support"
+    #             }
+    #         })
+        
+    # if current_time > conditionTime and (trend == "BEARISH") and (level["levelDetails"]["type"] == "fiveMinRes" or level["levelDetails"]["type"] == "fiveMinSup") and indexAt >= (lev + 15):
+       
+        collection.update_one(
+            {
+                "id":level["id"],
+            },
+            {
+                "$set":{
+                    "status": "Passive",
+                    "levelDetails.type": "resistance"
+                }
+            })
+    # print(hasattr(level,"tradeResults"),"trade results",level)
+    # if hasattr(level,"tradeResults"):
+    if "tradeResults" in level:
+         if len(level["tradeResults"])>1:
+            tradeResult = level["tradeResults"]  
+            print(tradeResult,"trade resultttt",tradeResult[len(tradeResult)-1]) 
+            if len(tradeResult) >= 4 :
+                collection.update_one(
+                    {
+                        "id":level["id"]
+                    },
+                    {
+                        "$set":{"status":"Closed"}
+                    })
+            # change support to active after level reached sup + 10 to active and place order at sup + 20
+            if tradeResult[len(tradeResult)-1]["result"] == "Loss" and lev < indexAt  <= lev + 10 :
+                collection.update_one(
+                    {
+                        "id":level["id"],
+                        "levelDetails.type": "support"
+                    },
+                    {
+                        "$set":{
+                            "status": "Active",
+                            "interchangable": True,
+                            "levelDetails.type": "testedSup"
+                        }
+                    })
+            if tradeResult[len(tradeResult)-1]["result"] == "Loss" and lev - 10 > indexAt  >= lev :
+                collection.update_one(
+                    {
+                        "id":level["id"],
+                        "levelDetails.type": "resistance"
+                    },
+                    {
+                        "$set":{
+                            "status": "Active",
+                            "interchangable": True,
+                            "levelDetails.type": "testedRes"
+                        }
+                    })
+            if tradeResult[len(tradeResult)-1]["result"] == "Profit" and level["levelDetails"]["type"] == "testedRes":
+                collection.update_one(
+                    {
+                        "id":level["id"],
+                        "levelDetails.type": "testedRes"
+                    },
+                    {
+                        "$set":{
+                            "status": "Active",
+                            "levelDetails.type": "resistance"
+                        }
+                    })
+                collection.update_one(
+                    {
+                        "id":level["id"],
+                        "levelDetails.type": "testedSup"
+                    },
+                    {
+                        "$set":{
+                            "status": "Active",
+                            "levelDetails.type": "support"
+                        }
+                    })
+        
+        
+    return
+

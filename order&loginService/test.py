@@ -94,9 +94,41 @@ from bson import BSON
 # print(my_time_str)
 # bson_data = BSON.encode({'time': my_time_str})
 # print(bson_data,"bson data")
-from mongo import ConnectDB
-client = ConnectDB()
-db = client["algoTrading"]
-collection = db["orders"]
-status = collection.find_one({"indexName" : "IFTY","status":"Active"},{"status":1,"_id":0})
-print(status)
+# from mongo import ConnectDB
+# client = ConnectDB()
+# db = client["algoTrading"]
+# collection = db["orders"]
+# status = collection.find_one({"indexName" : "IFTY","status":"Active"},{"status":1,"_id":0})
+# print(status)
+# obj = { 'id': 'Level-013', 'name': 'NIFTY BANK', 'tradingsymbol': 'NIFTY BANK', 'interchangable': False, 'status': 'Passive', 'instrument_token': 260105, 'levelDetails': {'level': 44096.0, 'type': 'support', 'testCount': 347, 'interChanged': False}, 'tradeResults': [{'orderId': 29122, 'result': 'Loss'}, {'orderId': 33339, 'result': 'Loss'}], 'lastTradeTime': '09:39:05.097376'}
+# print(hasattr(obj,"tradeResults"))
+# if "tradeResults" in obj:
+#     print("Hiiiiiii")
+# start_time = datetime.strptime("15:00:10", "%H:%M:%S").time()
+# current_time = datetime.now().time()
+# end_time = datetime.strptime("15:20", "%H:%M").time()
+# if start_time <= current_time <= end_time:
+#     print(start_time)
+
+
+
+# def sendMsg():
+#     bot_token = "6270701562:AAFNW56fYAdhUqHNB-a2szT3GFOKbeOjJn8"
+#     botchatId = "5143995071"
+#     sendText = "https://api.telegram.org/bot" + bot_token + "/sendMessage?chat_id=" + botchatId + "&text="+"Helllo from the other side"
+#     print(sendText,"<<<<<<send text")
+#     resp = requests.get(sendText)
+#     return resp.json()
+
+# print(sendMsg())
+
+# 5143995071
+# 
+
+# from sendTelegramMsg import *
+# from sendTelegramMsg import SendMsg
+
+# SendMsg("hiiii")
+tt = "hiiiii"
+
+print(str(tt))

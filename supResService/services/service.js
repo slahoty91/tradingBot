@@ -40,7 +40,7 @@ module.exports.addSuppRes = async (data)=>{
         const newDoc = new surResModel(obj)
         let doc = await newDoc.save()
         console.log(doc,'doccccccccc')
-        return "Level added"
+        return doc
 
     }catch(err){
         throw new Error(err)
@@ -48,31 +48,59 @@ module.exports.addSuppRes = async (data)=>{
     }
 }
 
-module.exports.updateSupRes = async (data) => {
+module.exports.updateStatus = async (data) => {
     try{
+        console.log(data)
+        let updateFilter = {
+            "id": data.id
+        }
+        let updateObj = {
+            "status": data.status,
+            "levelDetails": {
+                "type": "NA"
+            }
+        }
+        let re = await surResModel.findOne({id:data.id},{"levelDetails.type": 1, "_id":0})
+        console.log(re.levelDetails.type,"reeeeeee")
+        if (data.interchange == false){
+            updateObj.levelDetails.type = re.levelDetails.type
+        }
+        if (data.interchange == true){
+           console.log("from ifffff")
+           if(re.levelDetails.type == "resistance"){
+            console.log("from ifffff inside iifff")
+            updateObj.levelDetails.type = "support"
+           }else if(re.levelDetails.type == "support"){
+            updateObj.levelDetails.type = "resistance"
+           }
+        }
+
         
-        if(data.type == 'soft'){
-            const update = {
-                $push:{
-                    supportLevel: data.supportLevel,
-                    resistanceLevel: data.resistanceLevel
-                }
-            }
-           const result = await surResModel.updateOne({"tradingsymbol": data.tradingsymbol},update)
-           console.log(result,'result from servicesss')
-           return result
+       
+        console.log(updateFilter,updateObj,"<<<<<<<<<<")
+        res = await surResModel.updateOne(updateFilter,updateObj)
+        console.log(res,"resulttt")
+        return res
+        
+    }catch(err){
+        return err
+    }
+
+}
+
+module.exports.getLevels = async (data)=>{
+    try{
+        console.log(data)
+        let filterObj = {}
+        if(data.status){
+            filterObj.status = data.status
         }
-        if(data.type == 'hard'){
-            const update = {
-                $set:{
-                    supportLevel: data.supportLevel,
-                    resistanceLevel: data.resistanceLevel
-                }
-            }
-           const result = await surResModel.updateOne({"tradingsymbol": data.tradingsymbol},update)
-           console.log(result,'result from servicesss')
-           return result
+        if(data.id){
+            filterObj.id = data.id
         }
+        console.log(filterObj,"filterObj")
+        res = await surResModel.find(filterObj)
+        return res
     }catch(err){
         return err
     }

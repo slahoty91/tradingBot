@@ -17,60 +17,39 @@ user = collection.find_one({"name" : "SIDDHARTH LAHOTY"})
 kws = KiteTicker(user["apikey"],user["acc_token"])
 # counter = 0
 def on_ticks(ws, ticks,counter = 0):
-    tokens = [260105]
+    tokens = [260105,256265,257801]
     print("on tick called")
     orderCollection = db["orders"]
     activeStike = orderCollection.find({"status":{"$in":["Active","trailingSL"]}},{"instrument_token":1,"_id":0})
     activeStikeList = list(activeStike)
-    print(activeStikeList,"activeStrikeList")
-    strikeArr = []
     for strike in activeStikeList:
         if strike["instrument_token"] not in tokens:
             tokens.insert(len(tokens),strike["instrument_token"])
-    # CurrentDateTime = datetime.datet
-    # CurrentTime = datetime.time(CurrentDateTime.hour, CurrentDateTime.minute, CurrentDateTime.second)
-    # endtime = datetime.time(14, 23, 0)
-    # if CurrentTime > endtime: 
-    #     kws.stop()
-    #     kws.unsubscribe(tokens)
-    #     kws.close()
-        # raise SystemExit
     print(tokens,"tokenssssss")
+
     kws.subscribe(tokens)
     kws.set_mode(kws.MODE_LTP,tokens)
     for scripdata in ticks:
-       
-       
-        print(scripdata, scripdata['last_price'])
-        
+
         listScript = []
         listScript.insert(0,scripdata)
-        print(tokens,'beofr iffffffffff')
-        print(scripdata)
         isorderPlaced = fetchData(scripdata)
-        # print(isorderPlaced,"isOrderPlaceddddd")
         print(isorderPlaced,'is order placed',len(tokens),tokens)
-        # and condition is temprory removve it after including time condition
-        # if(isorderPlaced != False and len(tokens) == 1 and isorderPlaced != None):
-        #     print('hiii if condition satisfied')
-        #     tokens.append(isorderPlaced)
-        #     print(tokens,'inside ifffffffffffff')
-        #     kws.subscribe(tokens)
-        #     kws.set_mode(kws.MODE_LTP,tokens)
         
         
 
 def on_connect(ws, response): 
     
-    # print("on connect called") 
+   
     print(tokens,"strikessssss")
     ws.subscribe(tokens)
-    #ws.set_mode(ws.MODE_FULL, tokens)
     ws.set_mode(ws.MODE_LTP, tokens)
-    # ws.set_mode(ws.MODE_QUOTE, [tokens[1]])    
-    # ws.set_mode(ws.MODE_FULL, [tokens[2]])
+   
 
+kws.on_ticks = on_ticks
+kws.on_connect = on_connect
 
+kws.connect()
 
 # def on_close(ws, code, reason):
 #     pass
@@ -89,8 +68,7 @@ def on_connect(ws, response):
 # def on_order_update(ws, data):
 #     print("order update: ", data)
 
-kws.on_ticks = on_ticks
-kws.on_connect = on_connect
+
 
 # kws.on_close = on_close
 # kws.on_error = on_error
@@ -98,4 +76,3 @@ kws.on_connect = on_connect
 # kws.on_reconnect = on_reconnect
 # kws.on_order_update = on_order_update
 
-kws.connect()

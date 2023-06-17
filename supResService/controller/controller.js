@@ -1,4 +1,4 @@
-const { addSuppRes, updateSupRes } = require("../services/service");
+const { addSuppRes, updateStatus, getLevels } = require("../services/service");
 
 class suResontroller {
     
@@ -15,14 +15,27 @@ class suResontroller {
         }
     }
 
-    async updatateSupRes(req, res){
+    async updatateStatus(req, res){
+        console.log("update status called")
         try{
             let obj = req.body
-            obj.type = req.query.type
-            let result = await updateSupRes(obj)
+            console.log(obj)
+            let result = await updateStatus(obj)
             res.send(result)
         }catch(err){
             res.status(400).send(err)
+        }
+    }
+
+    async getLevels(req, res){
+        try{
+            console.log("get levels called")
+            let object = req.query
+            console.log(object,"object")
+            let result = await getLevels(object)
+            res.send(result)
+        }catch(err){
+            res.send(500).send(err)
         }
     }
 

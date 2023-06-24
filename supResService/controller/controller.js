@@ -9,7 +9,7 @@ class suResontroller {
             console.log(result,'resultttttt')
             res.status(200).send(result)
         }catch(err){
-            console.log(err)
+            console.log(err,"err catch")
             
             res.status(500).send(err)
         }

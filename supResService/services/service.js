@@ -4,7 +4,11 @@ const surResModel = require("../model/supResModel")
 module.exports.addSuppRes = async (data)=>{
     try{
         ct = []
-        ct = await surResModel.find({"levelDetails.level": data.levelDetails.level})
+        ct = await surResModel.find(
+            {
+                "status":{$ne:"Closed"},
+                "levelDetails.level": data.levelDetails.level,
+            })
         console.log(ct,"ctttttt")
         if (ct.length > 0){
             return {
@@ -15,6 +19,10 @@ module.exports.addSuppRes = async (data)=>{
         let result = await instrumentNSE.findOne({
             "name": data.name
         })
+        console.log("resultInstrument",result)
+        if(result == null){
+            throw new Error("Instrument dosn't exist")
+        }
         let obj = {
             id: "",
             name: "",
@@ -43,6 +51,7 @@ module.exports.addSuppRes = async (data)=>{
         return doc
 
     }catch(err){
+        console.log("errorrrr")
         throw new Error(err)
         // return err
     }

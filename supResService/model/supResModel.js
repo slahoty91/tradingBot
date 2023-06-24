@@ -3,8 +3,7 @@ const mongoose = require('mongoose')
 const supResLevelSchema = new mongoose.Schema({
     level: {
         type: Number,
-        required: true,
-        unique: true
+        required: true
     },
     type: {
         type: String,

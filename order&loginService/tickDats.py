@@ -3,11 +3,6 @@ import datetime
 from mongo import *
 from execOrder import *
 
-# accToken = 'U5NGn6cMfpgqrGr2RC0831YfVXLHzBln'
-# apiKey = 'k55bdfkr27eqguv6'
-# Temprory adding strike data for sl target function as of now tick data is being automatically being added for strike  3050241
-# tokens = [260105]
-# kws = KiteTicker(apiKey, accToken)
 client = ConnectDB()
 db = client['algoTrading']
 collection = db["userDetails"]
@@ -29,12 +24,13 @@ def on_ticks(ws, ticks,counter = 0):
     
     inactiveStrike = orderCollection.find({"status":"Closed"},{"instrument_token":1,"_id":0})
     inactiveStrike = list(inactiveStrike)
-    print(inactiveStrike,"inactive strikeeeeee")
+    # print(inactiveStrike,"inactive strikeeeeee")
     str = list()
     for strike in inactiveStrike:
         str.insert(0,strike["instrument_token"])
+    # print(str,"strrrrrrr")
     kws.unsubscribe(str)
-    print(tokens,"tokenssssss")
+    # print(tokens,"tokenssssss")
 
     kws.subscribe(tokens)
     kws.set_mode(kws.MODE_LTP,tokens)
@@ -45,7 +41,7 @@ def on_ticks(ws, ticks,counter = 0):
         listScript.insert(0,scripdata)
         isorderPlaced = fetchData(scripdata)
 
-        print(isorderPlaced,'is order placed',len(tokens),tokens)
+        # print(isorderPlaced,'is order placed',len(tokens),tokens)
         
         
         

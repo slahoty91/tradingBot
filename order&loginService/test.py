@@ -45,10 +45,10 @@
 # print(obj,'objecttttttt')
 # collection.insert_many(obj)
 
-import random
-from datetime import datetime, time, timedelta
+# import random
+# from datetime import datetime, time, timedelta
 
-from bson import BSON
+# from bson import BSON
 
 # num = random.randint(10000,99999)
 # print(num)
@@ -133,42 +133,101 @@ from bson import BSON
 
 # print(str(tt))
 
-def selectStrikePrice(ltp,type,order):
+# def selectStrikePrice(ltp,type,order):
     
-    if type == "NIFTY" and order == "CE":
-        str = (ltp / 50)
-        sel = (ltp % 50)
-        str = int(str)
-        if sel > 50:
-            str = str + 1
-        str = (str * 50)
-        return str
+#     if type == "NIFTY" and order == "CE":
+#         str = (ltp / 50)
+#         sel = (ltp % 50)
+#         str = int(str)
+#         if sel > 50:
+#             str = str + 1
+#         str = (str * 50)
+#         return str
     
-    if type == "NIFTY" and order == "PE":
-        str = (ltp / 50)
-        sel = (ltp % 50)
-        str = int(str)
-        if sel < 50:
-            str = str + 1
-        str = (str * 50)
-        return str
+#     if type == "NIFTY" and order == "PE":
+#         str = (ltp / 50)
+#         sel = (ltp % 50)
+#         str = int(str)
+#         if sel < 50:
+#             str = str + 1
+#         str = (str * 50)
+#         return str
     
-    if (type == "BANKNIFTY" or type == "FIN NIFTY") and order == "CE":
-        str = (ltp / 100)
-        sel = (ltp % 100)
-        str = int(str)
-        if sel > 100:
-            str = str + 1
-        str = (str * 100)
-        return str
+#     if (type == "BANKNIFTY" or type == "FIN NIFTY") and order == "CE":
+#         str = (ltp / 100)
+#         sel = (ltp % 100)
+#         str = int(str)
+#         if sel > 100:
+#             str = str + 1
+#         str = (str * 100)
+#         return str
     
-    if (type == "BANKNIFTY" or type == "FIN NIFTY") and order == "PE":
-        str = (ltp / 100)
-        sel = (ltp % 100)
-        str = int(str)
-        if sel < 100:
-            str = str + 1
-        str = (str * 100)
-        return str
+#     if (type == "BANKNIFTY" or type == "FIN NIFTY") and order == "PE":
+#         str = (ltp / 100)
+#         sel = (ltp % 100)
+#         str = int(str)
+#         if sel < 100:
+#             str = str + 1
+#         str = (str * 100)
+#         return str
 
-print(selectStrikePrice(19060.0,"NIFTY","CE"))
+# print(selectStrikePrice(19060.0,"NIFTY","CE"))
+import mongo
+
+client = mongo.ConnectDB()
+db = client["algoTrading"]
+ordersCollection = db["orders"]
+
+res = ordersCollection.find({"sno":{"$gt":10}})
+resList = list(res)
+num = 0
+sum = 0
+sumBankNifty = 0
+sumNifty = 0
+sumFinNifty = 0
+perPos = 0
+perNag = 0
+perSunPos = 0
+perSumNag = 0
+# print(resList[0])
+for li in resList:
+    updateObj = {}
+    # num = num + 1
+    # print(num,"nummm")
+    pe = (li["bookedAmount"]/li["price"])*100
+    if (pe >0):
+        perPos = perPos + pe
+        perSunPos = perSunPos + 1
+    
+    if (pe <0):
+        perNag = perNag + pe
+        perSumNag = perSumNag + 1
+    
+    if li["indexName"] == "BANKNIFTY" :
+        sumBankNifty = sumBankNifty + li["bookedAmount"]*25
+        # print("booked amount",li["bookedAmount"]*25)
+        
+    
+    if li["indexName"] == "FINNIFTY":
+        sumNifty = sumNifty + li["bookedAmount"]*40
+        # print("booked amount",li["bookedAmount"]*40)
+
+    if li["indexName"] == "NIFTY":
+        sumFinNifty = sumFinNifty + li["bookedAmount"]*50
+        # print("booked amount",li["bookedAmount"]*50)
+    
+    # print(perPos,perNag,"perrrrr",pe)
+
+print(sumBankNifty,sumNifty,sumFinNifty,(sumBankNifty+sumNifty+sumFinNifty)) 
+    # print(updateObj,"update obj",li["indexName"])
+    # ordersCollection.update_one(
+    #     {
+    #         "orderId":li["id"]
+    #     },
+        
+    #         updateObj
+        
+    #     )
+    # print(li["bookedAmount"])
+
+

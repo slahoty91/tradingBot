@@ -32,7 +32,8 @@ module.exports.addSuppRes = async (data)=>{
                 level: 0,
                 type: "notAssigned"
             },
-            interchangable: false
+            interchangable: false,
+
         }
         count = await surResModel.count({})
         console.log(count,"counttttttttttttt")
@@ -44,11 +45,13 @@ module.exports.addSuppRes = async (data)=>{
         obj.levelDetails.level = data.levelDetails.level
         obj.levelDetails.type = data.levelDetails.type
         obj.interchangable = data.interchangable ? data.interchangable : false
+        obj.forDevPurpuouse = data.forDevPurpuouse ? data.forDevPurpuouse: false
         console.log(obj,"objjjjjjjjjj")
         const newDoc = new surResModel(obj)
         let doc = await newDoc.save()
         console.log(doc,'doccccccccc')
         return doc
+        // return obj
 
     }catch(err){
         console.log("errorrrr")

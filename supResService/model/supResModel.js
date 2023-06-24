@@ -65,7 +65,10 @@ const supResSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
-    
+    forDevPurpuouse: {
+        type: Boolean,
+        default: false
+    },
     levelDetails: supResLevelSchema,
     dateCreated: {
         type: Date,

@@ -161,8 +161,14 @@ def placeOrder(price, token,type,level):
         purchasePrice = orderData[len(orderData)-1]['average_price']
         sl = purchasePrice - (purchasePrice * stoppLoss)/100
         tar = purchasePrice + (purchasePrice * target)/100
+
+        count = collection.count_documents({})
+        print(count,"from count documentssss")
+
+
         obj = { 
             # "orderId":orderId,
+            "sno": (count + 1),
             "orderId": str(orderId),
             "instrument_token": strike[2],
             "type": type,
@@ -196,7 +202,7 @@ def placeOrder(price, token,type,level):
                 },
                 "$push":{
                     "tradeResults":{
-                        "orderId":orderId,
+                        "orderId":str(orderId),
                         "result": "NA"
                         }
                 },
@@ -267,7 +273,7 @@ def checkTargetAndSL(data):
                 tradeResult = "Profit"
 
             obj = {
-                "orderId": orderId,
+                "orderId": str(orderId),
                 "instrument_token": data["instrument_token"],
                 "qty": 1,
                 "price": sellPrice,
@@ -288,12 +294,17 @@ def checkTargetAndSL(data):
             })
            
             # update support resistance table
+            print("just before level update")
             status = "Active"
             if tradeResult == "Loss":
                 status = "Passive"
 
             levelCollection = db["levels"]
-            filterObj = {"tradeResults":{"$elemMatch":{"orderId":result[0]["orderId"]}}}
+            filterObj = {
+                "tradeResults": {
+                    "$elemMatch":{"orderId":result[0]["orderId"]}
+                }
+                }
             updateObj = {
                     "$set":{
                         "status": status,
@@ -302,12 +313,12 @@ def checkTargetAndSL(data):
                     },
                     "$inc":{"levelDetails.testCount":1}
                 }
-            
+            print(filterObj,updateObj,"filter and update objectssss")
             levelRes = levelCollection.update_one(
                 filterObj,
                 updateObj
                 )
-            
+            print(levelRes.acknowledged,levelRes.matched_count,levelRes.matched_count,"level res")
             # Send msg for trade closing
             
             if orderRes.acknowledged:

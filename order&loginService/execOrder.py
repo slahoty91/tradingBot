@@ -5,12 +5,14 @@ from order import PlaceBuyOrderMarketNFO, orderHistory, PlaceSellOrderMarketNFO,
 from sendTelegramMsg import SendMsg
 
 
-
+# To trigger order layering put target 2 as greater than 0 and lot at 5
 target = 5
+target2 = 10
 stoppLoss = 5
-lot = 1
+lot = 5
 riskToReward = 1
-
+numOfTarget = 2
+E1toE2ratio = 80
 
 client = ConnectDB()
 db = client["algoTrading"]
@@ -55,38 +57,76 @@ def updateSlTarForTesting(data):
     curPrice = data["last_price"]
     stloss = (curPrice - (curPrice * stoppLoss)/100)
     tar = (curPrice + (curPrice * target)/100)
+    tar2 = (curPrice + (curPrice * target2)/100)
+
     if data["last_price"] < 100:
         stloss = curPrice - 6
         tar = curPrice + 6*riskToReward
-    res = ordersCollection.update_one(
-        {
-            "instrument_token" : data["instrument_token"],
-            "updateForTesing":{"$exists": False},
-            "status": "Active"
-        },
-        {"$set":{
-            "stopLoss": stloss,
-            "target": tar,
-            "price": curPrice,
-            "updateForTesing": True
-        }}
-    )
-    order = ordersCollection.find_one(
-        {
-            "instrument_token" : data["instrument_token"],
-            "status": "Active"
-        },
-        {
-            "indexName": 1,
-            "indexAt":1,
-            "_id":0
-        }
-    )
+    if numOfTarget == 1:
+        res = ordersCollection.update_one(
+            {
+                "instrument_token" : data["instrument_token"],
+                "updateForTesing":{"$exists": False},
+                "status": "Active"
+            },
+            {"$set":{
+                "stopLoss": stloss,
+                "target": tar,
+                "price": curPrice,
+                "updateForTesing": True
+            }}
+        )
+        order = ordersCollection.find_one(
+            {
+                "instrument_token" : data["instrument_token"],
+                "status": "Active"
+            },
+            {
+                "indexName": 1,
+                "indexAt":1,
+                "strike":1,
+                "_id":0
+            }
+        )
 
-    if res.modified_count>0:
-        msg = "Testing order placed, price "+ str(curPrice) + " sl of "+ str(stloss) + " and target of "+ str(tar) + " for " + order["indexName"] +" "+ str(order["indexAt"])
-        SendMsg(msg)
+        if res.modified_count>0:
+            msg = "Testing order placed, price "+ str(curPrice) + " sl of "+ str(stloss) + " and target of "+ str(tar) + " for " + order["indexName"] +" "+ str(order["indexAt"]) + " " +order["strike"]
+            SendMsg(msg)
+
+    if numOfTarget == 2:
+        print("from condition num of target 2")
+        res = ordersCollection.update_one(
+            {
+                "instrument_token" : data["instrument_token"],
+                "updateForTesing":{"$exists": False},
+                "status": "Active"
+            },
+            {"$set":{
+                "price": curPrice,
+                "exitDetails.exit1.target": tar,
+                "exitDetails.exit1.stopLoss": stloss,
+                "exitDetails.exit2.target": tar2,
+                "exitDetails.exit2.stopLoss": stloss,
+                "updateForTesing": True
+            }}
+        )
+        order = ordersCollection.find_one(
+            {
+                "instrument_token" : data["instrument_token"],
+                "status": "Active"
+            },
+            {
+                "indexName": 1,
+                "indexAt":1,
+                "strike":1,
+                "_id":0
+            }
+        )
+        if res.modified_count>0:
+            msg = "Testing order placed, price "+ str(curPrice) + " sl of "+ str(stloss) + " and target of "+ str(tar) + " & " +str(tar2) + " for " + order["indexName"] +" "+ str(order["indexAt"]) + " " + order["strike"] 
+            SendMsg(msg)
     return
+
 
 def checkCondition(tradingprice,istToken,levels):
 
@@ -101,12 +141,12 @@ def checkCondition(tradingprice,istToken,levels):
         # print(lev,"levvvvvvvv")
         # return
         if lev["name"] == "NIFTY 50" or lev["name"] == "NIFTY FIN SERVICE":
-            entryCE =  lev["levelDetails"]["level"]+5
-            entryPE =  lev["levelDetails"]["level"]-5
+            entryCE =  lev["levelDetails"]["level"]+7
+            entryPE =  lev["levelDetails"]["level"]-7
         
         if lev["name"] == "NIFTY BANK":
-            entryCE =  lev["levelDetails"]["level"]+10
-            entryPE =  lev["levelDetails"]["level"]-10
+            entryCE =  lev["levelDetails"]["level"]+12
+            entryPE =  lev["levelDetails"]["level"]-12
         if current_time <= conditionTime:
 
             if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice + 10 >lev["levelDetails"]["level"] and lev["status"] == "Active") and trend != "BEARISH":
@@ -161,10 +201,10 @@ def placeOrder(price, token,type,level):
         purchasePrice = orderData[len(orderData)-1]['average_price']
         sl = purchasePrice - (purchasePrice * stoppLoss)/100
         tar = purchasePrice + (purchasePrice * target)/100
+        tar2 = purchasePrice + (purchasePrice * target2)/100
 
         count = collection.count_documents({})
         print(count,"from count documentssss")
-
 
         obj = { 
             # "orderId":orderId,
@@ -185,6 +225,46 @@ def placeOrder(price, token,type,level):
             "target": tar,
             "status": "Active"
         }
+        
+        if numOfTarget == 2:
+
+
+            lot1 = int(E1toE2ratio*lot/100)
+            lot2 = lot - lot1
+            print(lot1,lot2,"qtyyyyyyyy")
+            obj = { 
+            # "orderId":orderId,
+            "sno": (count + 1),
+            "orderId": str(orderId),
+            "instrument_token": strike[2],
+            "type": type,
+            "parent_instrument_token": token,
+            "indexAt": price,
+            "strike": strike[0],
+            "indexName": strike[1],
+            "price": orderData[len(orderData)-1]['average_price'],
+            "executedAt": orderTime,
+            "levelId": level["id"],
+            "levelStatus": level["status"],
+            "levelType": level["levelDetails"]["type"],
+            "totaLots": lot,
+            "E1toE2ratio": E1toE2ratio,
+            "exitDetails": {
+                "exit1":{
+                    "target": tar,
+                    "stopLoss": sl,
+                    "lots": lot1,
+                },
+                "exit2": {
+                    "target": tar2,
+                    "stopLoss": sl,
+                    "lots": lot2,
+                }
+            },
+            "status": "Active"
+        }
+
+        
         orderCollection = db["orders"]
         orderCollection.insert_one(obj)
         orderMasterTable = db["ordersMasterTable"]
@@ -203,7 +283,7 @@ def placeOrder(price, token,type,level):
                 "$push":{
                     "tradeResults":{
                         "orderId":str(orderId),
-                        "result": "NA"
+                        "result": "To Be Updated"
                         }
                 },
                 "$inc": {"levelDetails.testCount": 1}
@@ -229,104 +309,210 @@ def checkTargetAndSL(data):
     result = list(result)
     print(data,'from checkTarget and sl',len(result))
     if(len(result) == 1):
-        stpLss = result[0]["stopLoss"]
-        target = result[0]["target"]
-        purchasePrice = result[0]["price"]
-        currentPrice = data["last_price"]
-        trailsSLtrigger = purchasePrice + (purchasePrice*5/100)
-        trailSL = purchasePrice + (purchasePrice*1/100)
-        if(trailsSLtrigger <= currentPrice):
-            resultOrder = orderCollection.update_one(
-                {
+        if numOfTarget == 1:
+
+            stpLss = result[0]["stopLoss"]
+            target = result[0]["target"]
+            purchasePrice = result[0]["price"]
+            currentPrice = data["last_price"]
+            trailsSLtrigger = purchasePrice + (purchasePrice*5/100)
+            trailSL = purchasePrice + (purchasePrice*1/100)
+            if(trailsSLtrigger <= currentPrice):
+                resultOrder = orderCollection.update_one(
+                    {
+                        "instrument_token" : data["instrument_token"],
+                        "status": "Active"
+                    },
+                    {
+                        "$set":{
+                            "stopLoss":trailSL,
+                            "stopLossTrailed":True,
+                            "trailsSLtrigger":trailsSLtrigger,
+                            "status":"trailingSL"
+                            },
+                        
+                    })
+                if resultOrder.modified_count >0:
+                    msg = "SL Updated with for oreder id " + str(result[0]["orderId"])
+                    SendMsg(msg)
+            print(target,data["last_price"],stpLss,"from checkTarget and sl")
+            if (stpLss >= data["last_price"] or target <= data["last_price"]):
+                print("sell order called")
+                if testing == True:
+                    orderId = random.randint(10000,99999)
+                    orderData = fakeOrder(data["last_price"],result[0]["strike"])
+                # orderData = orderHistory(orderId)
+                else:
+                    orderId = PlaceSellOrderMarketNFO(result[0]["strike"])
+                    orderData = orderHistory(orderId)
+                orderTime = orderData[len(orderData)-1]['order_timestamp'].strftime("%H:%M:%S.%f")
+                sellPrice = orderData[len(orderData)-1]['average_price']
+                trade = -purchasePrice + sellPrice
+                tradeResult = ""
+                if purchasePrice >= sellPrice:
+                    tradeResult = "Loss"
+                else:
+                    tradeResult = "Profit"
+
+                obj = {
+                    "orderId": str(orderId),
+                    "instrument_token": data["instrument_token"],
+                    "qty": 1,
+                    "price": sellPrice,
+                    "executedAt": orderTime,
+                    "status": "Closed"
+                }
+                # order = orderCollection.find_one({})
+                orderRes = orderCollection.update_one({
+                    "instrument_token": data["instrument_token"],
+                    "status": {"$in":["Active","trailingSL"]}
+                }, {
+                    "$set": {
+                        "sellOrder": obj,
+                        "tradeResult": tradeResult,
+                        "bookedAmount": trade,
+                        "status": "Closed",
+                        }
+                })
+            
+                # update support resistance table
+                print("just before level update")
+                status = "Active"
+                if tradeResult == "Loss":
+                    status = "Passive"
+
+                levelCollection = db["levels"]
+                filterObj = {
+                    "tradeResults": {
+                        "$elemMatch":{"orderId":result[0]["orderId"]}
+                    }
+                    }
+                updateObj = {
+                        "$set":{
+                            "status": status,
+                            "lastTradeTime": orderTime,
+                            "tradeResults.$.result": tradeResult
+                        },
+                        "$inc":{"levelDetails.testCount":1}
+                    }
+                print(filterObj,updateObj,"filter and update objectssss")
+                levelRes = levelCollection.update_one(
+                    filterObj,
+                    updateObj
+                    )
+                print(levelRes.acknowledged,levelRes.matched_count,levelRes.matched_count,"level res")
+                # Send msg for trade closing
+                
+                if orderRes.acknowledged:
+                    msg = "Trade closed with order id "+str(orderId)+", trade result as " + tradeResult + " and booked amout as " + str(trade)
+                    
+                    SendMsg(msg)
+                
+                return (data["instrument_token"],"SELL ORDER")
+        
+        if numOfTarget == 2:
+
+            exitDetails = result[0]["exitDetails"]
+
+            stpLss1 = exitDetails["exit1"]["stopLoss"]
+            stpLss2 = exitDetails["exit2"]["stopLoss"]
+            target1 = exitDetails["exit1"]["target"]
+            target2 = exitDetails["exit2"]["target"]
+    
+            purchasePrice = result[0]["price"]
+            currentPrice = data["last_price"]
+            
+            triggerSL = purchasePrice + (purchasePrice * 5/100)
+            sl1 = currentPrice
+            sl2 = currentPrice - (currentPrice *2/100)
+            if (currentPrice >= triggerSL):
+                print("Update SL HERE",sl1,sl2)
+                ordersCollection = db["orders"]
+                res = ordersCollection.update_one({
                     "instrument_token" : data["instrument_token"],
                     "status": "Active"
-                },
-                {
+                },{
                     "$set":{
-                        "stopLoss":trailSL,
-                        "stopLossTrailed":True,
-                        "trailsSLtrigger":trailsSLtrigger,
-                        "status":"trailingSL"
-                        },
+                        "exitDetails.exit1.stopLoss": sl1,
+                        "exitDetails.exit2.stopLoss": sl2
+                    }
+                })
+
+                print(res.acknowledged,res.modified_count,"ressss")
+
+            # currentPrice = 91
+            currentPrice = data["last_price"] = 104
+            if currentPrice <= stpLss1 :
+                print("sell order to be executed")
+                lotsToSell = result[0]["totaLots"]
+                if testing == True:
+                    orderId = random.randint(10000,99999)
+                    orderData = fakeOrder(data["last_price"],result[0]["strike"])
+                # orderData = orderHistory(orderId)
+                else:
+                    orderId = PlaceSellOrderMarketNFO(result[0]["strike"])
+                    orderData = orderHistory(orderId)
+                orderTime = orderData[len(orderData)-1]['order_timestamp'].strftime("%H:%M:%S.%f")
+                sellPrice = orderData[len(orderData)-1]['average_price']
+                trade = -purchasePrice + sellPrice
+                print(purchasePrice,sellPrice,"purchase price and sell price")
+                tradeResult = "Loss"
+
+                obj = {
+                    "orderId": str(orderId),
+                    "instrument_token": data["instrument_token"],
+                    "qty": lotsToSell,
+                    "price": sellPrice,
+                    "executedAt": orderTime,
+                    "status": "Closed"
+                }
+                # order = orderCollection.find_one({})
+                orderRes = orderCollection.update_one({
+                    "instrument_token": data["instrument_token"],
+                    "status": {"$in":["Active","trailingSL"]}
+                }, {
+                    "$set": {"status": "Closed"},
+                    "$push": {
+                        "sellOrder":{
+                        "orderDetails": obj,
+                        "tradeResult": tradeResult,
+                        "bookedAmount": trade
+                        }}
                     
                 })
-            if resultOrder.modified_count >0:
-                msg = "SL Updated with for oreder id " + str(result[0]["orderId"])
-                SendMsg(msg)
-        print(target,data["last_price"],stpLss,"from checkTarget and sl")
-        if (stpLss >= data["last_price"] or target <= data["last_price"]):
-            print("sell order called")
-            if testing == True:
-                orderId = random.randint(10000,99999)
-                orderData = fakeOrder(data["last_price"],result[0]["strike"])
-            # orderData = orderHistory(orderId)
-            else:
-                orderId = PlaceSellOrderMarketNFO(result[0]["strike"])
-                orderData = orderHistory(orderId)
-            orderTime = orderData[len(orderData)-1]['order_timestamp'].strftime("%H:%M:%S.%f")
-            sellPrice = orderData[len(orderData)-1]['average_price']
-            trade = -purchasePrice + sellPrice
-            tradeResult = ""
-            if purchasePrice >= sellPrice:
-                tradeResult = "Loss"
-            else:
-                tradeResult = "Profit"
+            
+                # update support resistance table
+                print("just before level update")
+                status = "Active"
+                if tradeResult == "Loss":
+                    status = "Passive"
 
-            obj = {
-                "orderId": str(orderId),
-                "instrument_token": data["instrument_token"],
-                "qty": 1,
-                "price": sellPrice,
-                "executedAt": orderTime,
-                "status": "Closed"
-            }
-            # order = orderCollection.find_one({})
-            orderRes = orderCollection.update_one({
-                "instrument_token": data["instrument_token"],
-                "status": {"$in":["Active","trailingSL"]}
-            }, {
-                "$set": {
-                    "sellOrder": obj,
-                    "tradeResult": tradeResult,
-                    "bookedAmount": trade,
-                    "status": "Closed",
+                levelCollection = db["levels"]
+                filterObj = {
+                    "tradeResults": {
+                        "$elemMatch":{"orderId":result[0]["orderId"]}
                     }
-            })
-           
-            # update support resistance table
-            print("just before level update")
-            status = "Active"
-            if tradeResult == "Loss":
-                status = "Passive"
+                    }
+                updateObj = {
+                        "$set":{
+                            "status": status,
+                            "lastTradeTime": orderTime,
+                            "tradeResults.$.result": tradeResult
+                        },
+                        "$inc":{"levelDetails.testCount":1}
+                    }
+                print(filterObj,updateObj,"filter and update objectssss")
+                levelRes = levelCollection.update_one(
+                    filterObj,
+                    updateObj
+                    )
 
-            levelCollection = db["levels"]
-            filterObj = {
-                "tradeResults": {
-                    "$elemMatch":{"orderId":result[0]["orderId"]}
-                }
-                }
-            updateObj = {
-                    "$set":{
-                        "status": status,
-                        "lastTradeTime": orderTime,
-                        "tradeResults.$.result": tradeResult
-                    },
-                    "$inc":{"levelDetails.testCount":1}
-                }
-            print(filterObj,updateObj,"filter and update objectssss")
-            levelRes = levelCollection.update_one(
-                filterObj,
-                updateObj
-                )
-            print(levelRes.acknowledged,levelRes.matched_count,levelRes.matched_count,"level res")
-            # Send msg for trade closing
-            
-            if orderRes.acknowledged:
-                msg = "Trade closed with order id "+str(orderId)+", trade result as " + tradeResult + " and booked amout as " + str(trade)
-                
-                SendMsg(msg)
-            
-            return (data["instrument_token"],"SELL ORDER")
+            if currentPrice >= target1:
+                print("book profits")
+                lotsToSell = exitDetails["exit1"]["lots"]
+
+
+
             
     return False
 
@@ -500,11 +686,15 @@ def exitOrder():
     orderCollection = db["orders"]
     orders = orderCollection.find({"status": "Active"})
     ordersList = list(orders)
+    print(ordersList,"from exit order")
     for order in ordersList:
+        orderId = random.randint(10000,99999)
         # place exit order
-        fakeOrder(1234,order["strike"])
-    levelCollection = db["levels"]
-    levelCollection.update_many({},{"$set":{"status":"Closed"}})
+        ord = fakeOrder(str(orderId),order["strike"])
+        print(ord)
+        # levelCollection = db["levels"]
+        # levelCollection.update_one({},{"$set":{"status":"Closed"}})
+
     return
 
 

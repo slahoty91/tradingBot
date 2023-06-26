@@ -30,22 +30,22 @@ indexTokens = [260105,256265,257801]
 
 def fetchData(data):
     print("From fetch data",data)
-    current_time = datetime.now().time()
-    if start_time <= current_time <= end_time:
-        firstFiveMin(data,end_time,current_time)
-    if current_time > end_time:
-        collection = db["levels"]
-        levels = collection.find({"instrument_token" : data["instrument_token"],"status":{"$ne":"Closed"}})
-        levels = list(levels)
+    # current_time = datetime.now().time()
+    # if start_time <= current_time <= end_time:
+    #     firstFiveMin(data,end_time,current_time)
+    # if current_time > end_time:
+    collection = db["levels"]
+    levels = collection.find({"instrument_token" : data["instrument_token"],"status":{"$ne":"Closed"}})
+    levels = list(levels)
+    print(len(levels),"levelssssssssss")
+    if data['instrument_token'] in indexTokens :
+        return checkCondition(data['last_price'], data['instrument_token'],levels)
 
-        if data['instrument_token'] in indexTokens :
-            return checkCondition(data['last_price'], data['instrument_token'],levels)
-
-        if data["instrument_token"] not in indexTokens:
-            
-            if testing == True:
-                updateSlTarForTesting(data)
-            return checkTargetAndSL(data)
+    if data["instrument_token"] not in indexTokens:
+        
+        if testing == True:
+            updateSlTarForTesting(data)
+        return checkTargetAndSL(data)
             
         
     return False
@@ -136,6 +136,7 @@ def checkCondition(tradingprice,istToken,levels):
     exitTime = datetime.strptime("15:20","%H:%M").time()
     
     for lev in levels:
+        print(lev["id"],"idddddddddddd")
         checkSupResStatus(lev,tradingprice)
         # Add tiem bound condition
         # print(lev,"levvvvvvvv")
@@ -147,21 +148,24 @@ def checkCondition(tradingprice,istToken,levels):
         if lev["name"] == "NIFTY BANK":
             entryCE =  lev["levelDetails"]["level"]+12
             entryPE =  lev["levelDetails"]["level"]-12
-        if current_time <= conditionTime:
+        # if current_time <= conditionTime:
 
-            if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice + 10 >lev["levelDetails"]["level"] and lev["status"] == "Active") and trend != "BEARISH":
-                return placeOrder(tradingprice, istToken, "CE",lev)
-            
-            if (lev["levelDetails"]["type"] == "fiveMinSup" and tradingprice - 10 < lev["levelDetails"]["level"] and lev["status"] == "Active") and trend != "BULLISH":
-                return placeOrder(tradingprice, istToken, "PE",lev)
+        if (lev["id"] == "Level-057"):
+            print(lev,"level 57")
 
-        if current_time >= startSwing:
+        if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice + 10 >lev["levelDetails"]["level"] and lev["status"] == "Active") and trend != "BEARISH":
+            return placeOrder(tradingprice, istToken, "CE",lev)
+        
+        if (lev["levelDetails"]["type"] == "fiveMinSup" and tradingprice - 10 < lev["levelDetails"]["level"] and lev["status"] == "Active") and trend != "BULLISH":
+            return placeOrder(tradingprice, istToken, "PE",lev)
+
+        # if current_time >= startSwing:
            
-            if (lev["levelDetails"]["type"] == "support") and lev["levelDetails"]["level"]<tradingprice<entryCE and lev["status"] == "Active":
-                return placeOrder(tradingprice, istToken, "CE",lev)
-            
-            if lev["levelDetails"]["type"] == "resistance" and entryPE<tradingprice<lev["levelDetails"]["level"] and lev["status"] == "Active":
-                return placeOrder(tradingprice, istToken, "PE",lev)
+        if (lev["levelDetails"]["type"] == "support") and lev["levelDetails"]["level"]<tradingprice<entryCE and lev["status"] == "Active":
+            return placeOrder(tradingprice, istToken, "CE",lev)
+        
+        if lev["levelDetails"]["type"] == "resistance" and entryPE<tradingprice<lev["levelDetails"]["level"] and lev["status"] == "Active":
+            return placeOrder(tradingprice, istToken, "PE",lev)
             
                
             # if (lev["levelDetails"]["type"] == "testedSup" and lev["levelDetails"]["level"] + 25<=tradingprice<lev["levelDetails"]["level"] + 35 and lev["status"] == "Active"):
@@ -441,7 +445,7 @@ def checkTargetAndSL(data):
                 print(res.acknowledged,res.modified_count,"ressss")
 
             # currentPrice = 91
-            currentPrice = data["last_price"] = 104
+            # currentPrice = data["last_price"] = 104
             if currentPrice <= stpLss1 :
                 print("sell order to be executed")
                 lotsToSell = result[0]["totaLots"]
@@ -506,10 +510,68 @@ def checkTargetAndSL(data):
                     filterObj,
                     updateObj
                     )
-
+            currentPrice = data["last_price"] = 104
             if currentPrice >= target1:
                 print("book profits")
                 lotsToSell = exitDetails["exit1"]["lots"]
+                if testing == True:
+                    orderId = random.randint(10000,99999)
+                    orderData = fakeOrder(data["last_price"],result[0]["strike"])
+                # orderData = orderHistory(orderId)
+                else:
+                    orderId = PlaceSellOrderMarketNFO(result[0]["strike"])
+                    orderData = orderHistory(orderId)
+                orderTime = orderData[len(orderData)-1]['order_timestamp'].strftime("%H:%M:%S.%f")
+                sellPrice = orderData[len(orderData)-1]['average_price']
+                trade = -purchasePrice + sellPrice
+                print(purchasePrice,sellPrice,"purchase price and sell price")
+                tradeResult = "Profit"
+
+                obj = {
+                    "orderId": str(orderId),
+                    "instrument_token": data["instrument_token"],
+                    "qty": lotsToSell,
+                    "price": sellPrice,
+                    "executedAt": orderTime,
+                    "status": "Closed"
+                }
+                # order = orderCollection.find_one({})
+                orderRes = orderCollection.update_one({
+                    "instrument_token": data["instrument_token"],
+                    "status": {"$in":["Active","trailingSL"]}
+                }, {
+                
+                    "$push": {
+                        "sellOrder":{
+                        "orderDetails": obj,
+                        "tradeResult": tradeResult,
+                        "bookedAmount": trade
+                        }}
+                    
+                })
+            
+                # update support resistance table
+                print("just before level update")
+                
+
+                levelCollection = db["levels"]
+                filterObj = {
+                    "tradeResults": {
+                        "$elemMatch":{"orderId":result[0]["orderId"]}
+                    }
+                    }
+                updateObj = {
+                        "$set":{
+                            "lastTradeTime": orderTime,
+                            "tradeResults.$.result": tradeResult
+                        },
+                        "$inc":{"levelDetails.testCount":1}
+                    }
+                print(filterObj,updateObj,"filter and update objectssss")
+                levelRes = levelCollection.update_one(
+                    filterObj,
+                    updateObj
+                    )
 
 
 

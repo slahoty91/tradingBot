@@ -24,6 +24,7 @@ trend = "SIDEWAYS"
 testing = True
 # Index tokens
 indexTokens = [260105,256265,257801]
+firstFiveMinTrade = False
 
 
 def fetchData(data):
@@ -107,7 +108,7 @@ def checkCondition(tradingprice,istToken,levels):
         if lev["name"] == "NIFTY BANK":
             entryCE =  lev["levelDetails"]["level"]+10
             entryPE =  lev["levelDetails"]["level"]-10
-        if current_time <= conditionTime:
+        if current_time <= conditionTime and firstFiveMinTrade == True:
 
             if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice + 10 >lev["levelDetails"]["level"] and lev["status"] == "Active") and trend != "BEARISH":
                 return placeOrder(tradingprice, istToken, "CE",lev)
@@ -295,9 +296,9 @@ def checkTargetAndSL(data):
            
             # update support resistance table
             print("just before level update")
-            status = "Active"
-            if tradeResult == "Loss":
-                status = "Passive"
+            status = "Passive"
+            # if tradeResult == "Loss":
+            #     status = "Passive"
 
             levelCollection = db["levels"]
             filterObj = {

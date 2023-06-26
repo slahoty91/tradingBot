@@ -178,7 +178,7 @@ client = mongo.ConnectDB()
 db = client["algoTrading"]
 ordersCollection = db["orders"]
 
-res = ordersCollection.find({"sno":{"$gt":10}})
+res = ordersCollection.find({"sno":{"$gt":23},"levelId":{"$ne":"Level-057"}})
 resList = list(res)
 num = 0
 sum = 0

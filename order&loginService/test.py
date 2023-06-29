@@ -172,53 +172,53 @@
 #         return str
 
 # print(selectStrikePrice(19060.0,"NIFTY","CE"))
-import mongo
+# import mongo
 
-client = mongo.ConnectDB()
-db = client["algoTrading"]
-ordersCollection = db["orders"]
+# client = mongo.ConnectDB()
+# db = client["algoTrading"]
+# ordersCollection = db["orders"]
 
-res = ordersCollection.find({"sno":{"$gt":23},"levelId":{"$ne":"Level-057"}})
-resList = list(res)
-num = 0
-sum = 0
-sumBankNifty = 0
-sumNifty = 0
-sumFinNifty = 0
-perPos = 0
-perNag = 0
-perSunPos = 0
-perSumNag = 0
-# print(resList[0])
-for li in resList:
-    updateObj = {}
-    # num = num + 1
-    # print(num,"nummm")
-    pe = (li["bookedAmount"]/li["price"])*100
-    if (pe >0):
-        perPos = perPos + pe
-        perSunPos = perSunPos + 1
+# res = ordersCollection.find({"sno":{"$gt":0},"levelId":{"$ne":"Level-057"}})
+# resList = list(res)
+# num = 0
+# sum = 0
+# sumBankNifty = 0
+# sumNifty = 0
+# sumFinNifty = 0
+# perPos = 0
+# perNag = 0
+# perSunPos = 0
+# perSumNag = 0
+# # print(resList[0])
+# for li in resList:
+#     updateObj = {}
+#     # num = num + 1
+#     # print(num,"nummm")
+#     pe = (li["bookedAmount"]/li["price"])*100
+#     if (pe >0):
+#         perPos = perPos + pe
+#         perSunPos = perSunPos + 1
     
-    if (pe <0):
-        perNag = perNag + pe
-        perSumNag = perSumNag + 1
+#     if (pe <0):
+#         perNag = perNag + pe
+#         perSumNag = perSumNag + 1
     
-    if li["indexName"] == "BANKNIFTY" :
-        sumBankNifty = sumBankNifty + li["bookedAmount"]*25
-        # print("booked amount",li["bookedAmount"]*25)
+#     if li["indexName"] == "BANKNIFTY":
+#         sumBankNifty = sumBankNifty + li["bookedAmount"]*25
+#         # print("booked amount",li["bookedAmount"]*25)
         
     
-    if li["indexName"] == "FINNIFTY":
-        sumNifty = sumNifty + li["bookedAmount"]*40
-        # print("booked amount",li["bookedAmount"]*40)
+#     if li["indexName"] == "FINNIFTY":
+#         sumFinNifty = sumFinNifty + li["bookedAmount"]*40
+#         # print("booked amount",li["bookedAmount"]*40)
 
-    if li["indexName"] == "NIFTY":
-        sumFinNifty = sumFinNifty + li["bookedAmount"]*50
-        # print("booked amount",li["bookedAmount"]*50)
+#     if li["indexName"] == "NIFTY":
+#         sumNifty = sumNifty + li["bookedAmount"]*50
+#         # print("booked amount",li["bookedAmount"]*50)
     
-    # print(perPos,perNag,"perrrrr",pe)
+#     # print(perPos,perNag,"perrrrr",pe)
 
-print(sumBankNifty,sumNifty,sumFinNifty,(sumBankNifty+sumNifty+sumFinNifty)) 
+# print(sumBankNifty,sumNifty,sumFinNifty,(sumBankNifty+sumNifty+sumFinNifty)) 
     # print(updateObj,"update obj",li["indexName"])
     # ordersCollection.update_one(
     #     {
@@ -231,3 +231,10 @@ print(sumBankNifty,sumNifty,sumFinNifty,(sumBankNifty+sumNifty+sumFinNifty))
     # print(li["bookedAmount"])
 
 
+import datetime
+
+
+obj = {'instrument_token': 8963842, 'exchange_token': '35015', 'tradingsymbol': 'NIFTY23AUGFUT', 'name': 'NIFTY', 'last_price': 0.0, 'expiry': datetime.date(2023, 8, 31), 'strike': 0.0, 'tick_size': 0.05, 'lot_size': 50, 'instrument_type': 'FUT', 'segment': 'NFO-FUT', 'exchange': 'NFO'}
+
+obj["expiry"] = obj["expiry"].strftime('%Y-%m-%d')
+print(obj)

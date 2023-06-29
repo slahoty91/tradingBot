@@ -6,7 +6,7 @@ from sendTelegramMsg import SendMsg
 
 
 
-target = 5
+target = 10
 stoppLoss = 5
 lot = 1
 riskToReward = 1
@@ -58,7 +58,7 @@ def updateSlTarForTesting(data):
     tar = (curPrice + (curPrice * target)/100)
     if data["last_price"] < 100:
         stloss = curPrice - 6
-        tar = curPrice + 6*riskToReward
+        tar = curPrice + 12*riskToReward
     res = ordersCollection.update_one(
         {
             "instrument_token" : data["instrument_token"],
@@ -236,25 +236,26 @@ def checkTargetAndSL(data):
         currentPrice = data["last_price"]
         trailsSLtrigger = purchasePrice + (purchasePrice*5/100)
         trailSL = purchasePrice + (purchasePrice*1/100)
-        if(trailsSLtrigger <= currentPrice):
-            resultOrder = orderCollection.update_one(
-                {
-                    "instrument_token" : data["instrument_token"],
-                    "status": "Active"
-                },
-                {
-                    "$set":{
-                        "stopLoss":trailSL,
-                        "stopLossTrailed":True,
-                        "trailsSLtrigger":trailsSLtrigger,
-                        "status":"trailingSL"
-                        },
+        # WORKING WITH 1:2 RR
+        # if(trailsSLtrigger <= currentPrice):
+        #     resultOrder = orderCollection.update_one(
+        #         {
+        #             "instrument_token" : data["instrument_token"],
+        #             "status": "Active"
+        #         },
+        #         {
+        #             "$set":{
+        #                 "stopLoss":trailSL,
+        #                 "stopLossTrailed":True,
+        #                 "trailsSLtrigger":trailsSLtrigger,
+        #                 "status":"trailingSL"
+        #                 },
                     
-                })
-            if resultOrder.modified_count >0:
-                msg = "SL Updated with for oreder id " + str(result[0]["orderId"])
-                SendMsg(msg)
-        print(target,data["last_price"],stpLss,"from checkTarget and sl")
+        #         })
+        #     if resultOrder.modified_count >0:
+        #         msg = "SL Updated with for oreder id " + str(result[0]["orderId"])
+        #         SendMsg(msg)
+        # print(target,data["last_price"],stpLss,"from checkTarget and sl")
         if (stpLss >= data["last_price"] or target <= data["last_price"]):
             print("sell order called")
             if testing == True:

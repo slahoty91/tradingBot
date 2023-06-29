@@ -1,43 +1,76 @@
 from kiteconnect import KiteConnect
-import pandas as pd
-import os
-import csv
+import datetime
 from mongo import *
-from dateutil import parser
-pw = os.chdir("/Users/siddharthlahoty/Desktop/AlogoTrading/acc_auth")
-acc_token_path = "access_token.txt"
-acc_token = open(acc_token_path,'r').read().split()
-print(acc_token,"access tokennnnnnnnnnnn")
-kite = KiteConnect(api_key="k55bdfkr27eqguv6")
-data = kite.set_access_token(acc_token[0])
+
+
+exchange = ["NSE","NFO"]
 
 client = ConnectDB()
 db = client['algoTrading']
+def getKiteObj():
+   collection = db["userDetails"]
+   user = collection.find_one({})
+   kite = KiteConnect(user["apikey"]) 
+   kite.set_access_token(user["acc_token"])
+   return kite
+
 def download_instruments(exch):
     lst = []
+    kite = getKiteObj()
     if exch == 'NSE':
         lst = kite.instruments(exchange=kite.EXCHANGE_NSE)
-    else:
+    if exch == 'NFO':
         lst = kite.instruments(exchange=kite.EXCHANGE_NFO)
     return lst
 
-def insertData(data,exchange):
-    colection 
-    if exchange == 'NSE':
-        colection = db['instrumentNSE']
-    if exchange == 'NFO':
-        colection = db['instrumentNFO']
-        for item in data:
-            item['expiry'] = item['expiry'].strftime('%Y-%m-%d')
-    try:
-        colection.insert_many(data)
-    except Exception as e:
-        print("Insert failed: {}".format(e))
 
-dataNFO = download_instruments('NFO')
+# download_instruments('NSE')
+
+def insertData():
+    
+    for exch in exchange:
+        strikeList = download_instruments(exch)
+        if exch == "NFO":
+            collection = db["instrumentNFO"]
+            for strike in strikeList:
+                strike["expiry"] = strike["expiry"].strftime('%Y-%m-%d')
+        
+        if exch == "NSE":
+            collection = db["instrumentNSE"]
+        
+        collection.insert_many(strikeList)
 
 
-insertData(dataNFO,'NSE')
+insertData()
+
+
+
+
+
+# def insertData(data,exchange):
+#     print(len(data),exchange,data[0])
+#     if exchange == 'NSE':
+#         colection = db['instrumentNSE']
+#         for item in data:
+#             print(item,"inside forrrrr")
+#             item['expiry'] = item['expiry'].strftime('%Y-%m-%d')
+#     if exchange == 'NFO':
+#         print("inside ifffff")
+#         colection = db['instrumentNFO']
+#         for item in data:
+#             print(item,"inside forrrrr")
+#             item['expiry'] = item['expiry'].strftime('%Y-%m-%d')
+#             print(item,"data inside iffff")
+#     try:
+#         # print(data[0])
+#         colection.insert_many(data)
+#     except Exception as e:
+#         print("Insert failed: {}".format(e))
+
+# dataNFO = download_instruments('NFO')
+
+
+# insertData(dataNFO,'NSE')
 
 # colectionName = db['instrumentNFO']
 # try:

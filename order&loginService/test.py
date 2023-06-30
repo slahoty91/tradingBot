@@ -226,9 +226,21 @@
 
 # print(sumBankNifty,sumNifty,sumFinNifty,(sumBankNifty+sumNifty+sumFinNifty)) 
 
+import pymongo
+import mongo
 
-tt = 5
-ty = 75*5/100
-print(int(ty))
+client = mongo.ConnectDB()
+db = client["algoTrading"]
+levelCollection = db["levels"]
+res = levelCollection.find({
+    "instrument_token" : 260105,
+    "status": "Active",
+    "levelDetails.type": "bookProfits"
+    },{
+        "_id":0,
+        "id":1,
+        "levelDetails.level":1
+    }).sort("levelDetails.level",pymongo.ASCENDING)
+print(list(res),"resssssssssssss")
 
 

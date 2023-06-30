@@ -16,7 +16,8 @@ const supResLevelSchema = new mongoose.Schema({
             "fiveMinRes",
             "testedSup",
             "testedRes",
-            "notAssigned"
+            "notAssigned",
+            "bookProfits"
         ],
         required: true
     },

@@ -16,7 +16,7 @@ def on_ticks(ws, ticks,counter = 0):
     tokens = [260105,256265,257801]
     print("on tick called")
     orderCollection = db["orders"]
-    activeStike = orderCollection.find({"status":{"$in":["Active","trailingSL","firstTarAchived"]}},{"instrument_token":1,"_id":0})
+    activeStike = orderCollection.find({"status":{"$in":["Active","trailingSL"]}},{"instrument_token":1,"_id":0})
     activeStikeList = list(activeStike)
     for strike in activeStikeList:
         if strike["instrument_token"] not in tokens:

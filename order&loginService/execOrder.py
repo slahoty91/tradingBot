@@ -1,18 +1,20 @@
 from datetime import datetime, time, timedelta
 import random
+
+import pymongo
 from mongo import *
 from order import PlaceBuyOrderMarketNFO, orderHistory, PlaceSellOrderMarketNFO, fakeOrder
 from sendTelegramMsg import SendMsg
 
 
 # To trigger order layering put target 2 as greater than 0 and lot at 5
-target = 5
+target = 10
 target2 = 10
 stoppLoss = 5
-lot = 5
+lot = 2
 riskToReward = 1
 numOfTarget = 2
-E1toE2ratio = 80
+E1toE2ratio = 50
 
 client = ConnectDB()
 db = client["algoTrading"]
@@ -30,6 +32,7 @@ indexTokens = [260105,256265,257801]
 
 def fetchData(data):
     print("From fetch data",data)
+    getOrdersAfterFirstTraget(data)
     current_time = datetime.now().time()
     if start_time <= current_time <= end_time:
         firstFiveMin(data,end_time,current_time)
@@ -49,6 +52,89 @@ def fetchData(data):
                 
     return False
 
+def getOrdersAfterFirstTraget(data):
+
+    currentPrice = data["last_price"]
+    ordersCollection = db["orders"]
+    orders = ordersCollection.find({
+        "status":{"$in":["firstTarAchived","firstSlHit"]},"parent_instrument_token":data["instrument_token"]
+        })
+    orderList = list(orders)
+    if len(orderList) == 0:
+        return
+    
+    else:
+              
+        if currentPrice < stopLoss or currentPrice > target:
+
+            exitDetails = orderList[0]["exitDetails"]["exit2"]
+            stopLoss = orderList[0]["exitDetails"]["exit2"]["stopLoss"]
+            target = orderList[0]["exitDetails"]["exit2"]["target"]
+            purchasePrice = orderList[0]["price"]
+            print("EXECUTE SELL ORDER")
+            lotsToSell = exitDetails["exit2"]["lots"]
+
+            if testing == True:
+                orderId = random.randint(10000,99999)
+                orderData = fakeOrder(data["last_price"],orderList[0]["strike"])
+        # orderData = orderHistory(orderId)
+            else:
+                orderId = PlaceSellOrderMarketNFO(orderList[0]["strike"],lotsToSell)
+                orderData = orderHistory(orderId)
+
+            orderTime = orderData[len(orderData)-1]['order_timestamp'].strftime("%H:%M:%S.%f")
+            sellPrice = orderData[len(orderData)-1]['average_price']
+            trade = -purchasePrice + sellPrice
+            if sellPrice > purchasePrice:
+                tradeResult = "Profit"
+            else:
+                tradeResult = "Loss"
+
+            obj = {
+                    "orderId": str(orderId),
+                    "instrument_token": data["instrument_token"],
+                    "qty": lotsToSell,
+                    "price": sellPrice,
+                    "executedAt": orderTime,
+                    "status": "Closed"
+                }
+            
+            orderRes = ordersCollection.update_one({
+                    "instrument_token": data["instrument_token"],
+                    "status": {"$in":["Active","trailingSL"]}
+                }, {
+                    "$set": {"status": "firstSlHit"},
+                    "$push": {
+                        "sellOrder":{
+                        "orderDetails": obj,
+                        "tradeResult": tradeResult,
+                        "bookedAmount": trade
+                        }}
+                    
+                })
+            
+            levelCollection = db["levels"]
+            filterObj = {
+                "tradeResults": {
+                    "$elemMatch":{"orderId":orderList[0]["orderId"]}
+                }
+                }
+            updateObj = {
+                    "$set":{
+                        "status": "Passive",
+                        "lastTradeTime": orderTime,
+                        "tradeResults.$.result": tradeResult
+                    },
+                    "$inc":{"levelDetails.testCount":1}
+                }
+            print(filterObj,updateObj,"filter and update objectssss")
+            levelRes = levelCollection.update_one(
+                filterObj,
+                updateObj
+                )
+       
+
+
 def updateSlTarForTesting(data):
     
     ordersCollection = db["orders"]
@@ -58,9 +144,10 @@ def updateSlTarForTesting(data):
     tar = (curPrice + (curPrice * target)/100)
     tar2 = (curPrice + (curPrice * target2)/100)
 
+    
     if data["last_price"] < 100:
         stloss = curPrice - 6
-        tar = curPrice + 6*riskToReward
+        tar = curPrice + 12*riskToReward
     if numOfTarget == 1:
         res = ordersCollection.update_one(
             {
@@ -104,8 +191,6 @@ def updateSlTarForTesting(data):
                 "price": curPrice,
                 "exitDetails.exit1.target": tar,
                 "exitDetails.exit1.stopLoss": stloss,
-                "exitDetails.exit2.target": tar2,
-                "exitDetails.exit2.stopLoss": stloss,
                 "updateForTesing": True
             }}
         )
@@ -136,7 +221,7 @@ def checkCondition(tradingprice,istToken,levels):
     
     for lev in levels:
         # print(lev["id"],"idddddddddddd")
-        checkSupResStatus(lev,tradingprice)
+        # checkSupResStatus(lev,tradingprice)
         # Add tiem bound condition
         # print(lev,"levvvvvvvv")
         # return
@@ -227,8 +312,28 @@ def placeOrder(price, token,type,level):
         }
         
         if numOfTarget == 2:
-
-
+            levelCollection = db["levels"]
+            res = levelCollection.find({
+                "instrument_token" : token,
+                "status": "Active",
+                "levelDetails.type": "bookProfits"
+                },{
+                    "_id":0,
+                    "id":1,
+                    "levelDetails.level":1
+                }).sort("levelDetails.level",pymongo.ASCENDING)
+        
+            resList = list(res)
+            print(resList,"listtttttttttttttttttttttttttt")
+            targetlevel = resList[0]
+            tar2 = targetlevel["levelDetails"]["level"]
+            if token == 260105:
+                offSet = 30
+            
+            if token == 256265 or token == 257801:
+                offSet = 12
+            
+            sl2 = level["levelDetails"]["level"] - offSet
             lot1 = int(E1toE2ratio*lot/100)
             lot2 = lot - lot1
             print(lot1,lot2,"qtyyyyyyyy")
@@ -256,8 +361,9 @@ def placeOrder(price, token,type,level):
                     "lots": lot1,
                 },
                 "exit2": {
+                    "price": price,
                     "target": tar2,
-                    "stopLoss": sl,
+                    "stopLoss": sl2,
                     "lots": lot2,
                 }
             },
@@ -343,7 +449,7 @@ def checkTargetAndSL(data):
                     orderData = fakeOrder(data["last_price"],result[0]["strike"])
                 # orderData = orderHistory(orderId)
                 else:
-                    orderId = PlaceSellOrderMarketNFO(result[0]["strike"])
+                    orderId = PlaceSellOrderMarketNFO(result[0]["strike"],lot)
                     orderData = orderHistory(orderId)
                 orderTime = orderData[len(orderData)-1]['order_timestamp'].strftime("%H:%M:%S.%f")
                 sellPrice = orderData[len(orderData)-1]['average_price']
@@ -444,13 +550,13 @@ def checkTargetAndSL(data):
             # currentPrice = data["last_price"] = 104
             if currentPrice <= stpLss1 and result[0]["status"] != "firstTarAchived":
                 print("sell order to be executed")
-                lotsToSell = result[0]["totaLots"]
+                lotsToSell = exitDetails["exit1"]["lots"]
                 if testing == True:
                     orderId = random.randint(10000,99999)
                     orderData = fakeOrder(data["last_price"],result[0]["strike"])
                 # orderData = orderHistory(orderId)
                 else:
-                    orderId = PlaceSellOrderMarketNFO(result[0]["strike"])
+                    orderId = PlaceSellOrderMarketNFO(result[0]["strike"],lotsToSell)
                     orderData = orderHistory(orderId)
                 orderTime = orderData[len(orderData)-1]['order_timestamp'].strftime("%H:%M:%S.%f")
                 sellPrice = orderData[len(orderData)-1]['average_price']
@@ -471,7 +577,7 @@ def checkTargetAndSL(data):
                     "instrument_token": data["instrument_token"],
                     "status": {"$in":["Active","trailingSL"]}
                 }, {
-                    "$set": {"status": "Closed"},
+                    "$set": {"status": "firstSlHit"},
                     "$push": {
                         "sellOrder":{
                         "orderDetails": obj,
@@ -483,9 +589,9 @@ def checkTargetAndSL(data):
             
                 # update support resistance table
                 print("just before level update")
-                status = "Active"
-                if tradeResult == "Loss":
-                    status = "Passive"
+                status = "Passive"
+                # if tradeResult == "Loss":
+                #     status = "Passive"
 
                 levelCollection = db["levels"]
                 filterObj = {
@@ -516,7 +622,7 @@ def checkTargetAndSL(data):
                     orderData = fakeOrder(data["last_price"],result[0]["strike"])
                 # orderData = orderHistory(orderId)
                 else:
-                    orderId = PlaceSellOrderMarketNFO(result[0]["strike"])
+                    orderId = PlaceSellOrderMarketNFO(result[0]["strike"],lotsToSell)
                     orderData = orderHistory(orderId)
                 orderTime = orderData[len(orderData)-1]['order_timestamp'].strftime("%H:%M:%S.%f")
                 sellPrice = orderData[len(orderData)-1]['average_price']
@@ -578,7 +684,7 @@ def checkTargetAndSL(data):
                     orderData = fakeOrder(data["last_price"],result[0]["strike"])
                 # orderData = orderHistory(orderId)
                 else:
-                    orderId = PlaceSellOrderMarketNFO(result[0]["strike"])
+                    orderId = PlaceSellOrderMarketNFO(result[0]["strike"],lotsToSell)
                     orderData = orderHistory(orderId)
 
                 orderTime = orderData[len(orderData)-1]['order_timestamp'].strftime("%H:%M:%S.%f")
@@ -772,10 +878,10 @@ def selectStrikePrice(ltp,name,type):
 def selectStrike(instrument_token, ltp, type):
     
     name = ""
-    expiry = "2023-06-29"
+    expiry = "2023-07-06"
     if instrument_token == 260105:
         name = "BANKNIFTY"
-        qty = lot*25
+        qty = lot*15
     
     if instrument_token == 256265:
         name = "NIFTY"
@@ -783,7 +889,7 @@ def selectStrike(instrument_token, ltp, type):
 
     if instrument_token == 257801:
         name = "FINNIFTY"
-        expiry = "2023-06-27"
+        expiry = "2023-07-04"
         qty = lot*40
 
     strike = selectStrikePrice(ltp,name,type)

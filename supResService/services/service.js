@@ -3,12 +3,15 @@ const surResModel = require("../model/supResModel")
 
 module.exports.addSuppRes = async (data)=>{
     try{
-        ct = []
-        ct = await surResModel.find(
-            {
-                "status":{$ne:"Closed"},
-                "levelDetails.level": data.levelDetails.level,
-            })
+        ct = [2]
+        findQuery = {
+            "status":{$ne:"Closed"},
+            "levelDetails.type": {$ne: data.levelDetails.type},
+            "levelDetails.level": data.levelDetails.level,
+        }
+        console.log(JSON.parse(JSON.stringify(findQuery)),"findQueryyyy")
+        ct = await surResModel.find(findQuery)
+       
         console.log(ct,"ctttttt")
         if (ct.length > 0){
             return {
@@ -51,7 +54,7 @@ module.exports.addSuppRes = async (data)=>{
         let doc = await newDoc.save()
         console.log(doc,'doccccccccc')
         return doc
-        // return obj
+       
 
     }catch(err){
         console.log("errorrrr")

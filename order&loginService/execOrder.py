@@ -9,7 +9,7 @@ from sendTelegramMsg import SendMsg
 target = 10
 stoppLoss = 5
 lot = 1
-riskToReward = 1
+riskToReward = 2
 
 
 client = ConnectDB()
@@ -57,8 +57,9 @@ def updateSlTarForTesting(data):
     stloss = (curPrice - (curPrice * stoppLoss)/100)
     tar = (curPrice + (curPrice * target)/100)
     if data["last_price"] < 100:
-        stloss = curPrice - 6
-        tar = curPrice + 12*riskToReward
+        risk = 6
+        stloss = curPrice - risk
+        tar = curPrice + risk*riskToReward
     res = ordersCollection.update_one(
         {
             "instrument_token" : data["instrument_token"],
@@ -465,7 +466,7 @@ def selectStrikePrice(ltp,name,type):
 def selectStrike(instrument_token, ltp, type):
     
     name = ""
-    expiry = "2023-06-29"
+    expiry = "2023-07-06"
     if instrument_token == 260105:
         name = "BANKNIFTY"
         qty = lot*25
@@ -476,7 +477,7 @@ def selectStrike(instrument_token, ltp, type):
 
     if instrument_token == 257801:
         name = "FINNIFTY"
-        expiry = "2023-06-27"
+        expiry = "2023-07-04"
         qty = lot*40
 
     strike = selectStrikePrice(ltp,name,type)

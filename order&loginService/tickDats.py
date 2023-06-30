@@ -59,8 +59,8 @@ kws.on_connect = on_connect
 
 kws.connect()
 
-# def on_close(ws, code, reason):
-#     pass
+def on_close(ws, code, reason):
+    pass
 
 # def on_error(ws, code, reason):
 #     print("closed connection on error: {} {}".format(code, reason))
@@ -78,7 +78,7 @@ kws.connect()
 
 
 
-# kws.on_close = on_close
+kws.on_close = on_close
 # kws.on_error = on_error
 # kws.on_noreconnect = on_noreconnect
 # kws.on_reconnect = on_reconnect

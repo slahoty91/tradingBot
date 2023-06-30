@@ -55,4 +55,3 @@ def autoLogin():
          collection.update_one({"name":"SIDDHARTH LAHOTY"},{"$set":{"acc_token":data["access_token"]}})
 
 autoLogin()
-

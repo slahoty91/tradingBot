@@ -11,10 +11,10 @@ from sendTelegramMsg import SendMsg
 target = 10
 target2 = 10
 stoppLoss = 5
-lot = 2
+lot = 5
 riskToReward = 1
 numOfTarget = 2
-E1toE2ratio = 50
+E1toE2ratio = 80
 
 client = ConnectDB()
 db = client["algoTrading"]
@@ -53,26 +53,30 @@ def fetchData(data):
     return False
 
 def getOrdersAfterFirstTraget(data):
-
+    print("getOrdersAfterFirstTraget")
     currentPrice = data["last_price"]
     ordersCollection = db["orders"]
     orders = ordersCollection.find({
-        "status":{"$in":["firstTarAchived","firstSlHit"]},"parent_instrument_token":data["instrument_token"]
+        # "status":{"$in":["Active","firstTarAchived","firstSlHit"]},
+        "status":{"$ne":"Closed"},
+        "parent_instrument_token":data["instrument_token"]
         })
     orderList = list(orders)
+    print("getOrdersAfterFirstTraget",len(orderList))
     if len(orderList) == 0:
         return
     
     else:
-              
+        stopLoss = orderList[0]["exitDetails"]["exit2"]["stopLoss"]
+        target = orderList[0]["exitDetails"]["exit2"]["target"]
+        purchasePrice = orderList[0]["price"]
+        print(currentPrice,stopLoss,"getOrdersAfterFirstTraget",target)
         if currentPrice < stopLoss or currentPrice > target:
-
-            exitDetails = orderList[0]["exitDetails"]["exit2"]
-            stopLoss = orderList[0]["exitDetails"]["exit2"]["stopLoss"]
-            target = orderList[0]["exitDetails"]["exit2"]["target"]
-            purchasePrice = orderList[0]["price"]
+            if orderList[0]["status"] == "Active":
+                lotsToSell = orderList[0]["totalLots"]
+            else:
+                lotsToSell = orderList[0]["exitDetails"]["exit2"]["lots"]
             print("EXECUTE SELL ORDER")
-            lotsToSell = exitDetails["exit2"]["lots"]
 
             if testing == True:
                 orderId = random.randint(10000,99999)
@@ -85,7 +89,7 @@ def getOrdersAfterFirstTraget(data):
             orderTime = orderData[len(orderData)-1]['order_timestamp'].strftime("%H:%M:%S.%f")
             sellPrice = orderData[len(orderData)-1]['average_price']
             trade = -purchasePrice + sellPrice
-            if sellPrice > purchasePrice:
+            if currentPrice > target:
                 tradeResult = "Profit"
             else:
                 tradeResult = "Loss"
@@ -100,10 +104,10 @@ def getOrdersAfterFirstTraget(data):
                 }
             
             orderRes = ordersCollection.update_one({
-                    "instrument_token": data["instrument_token"],
-                    "status": {"$in":["Active","trailingSL"]}
+                    "parent_instrument_token": data["instrument_token"],
+                    "status": {"$in":["Active","firstTarAchived"]}
                 }, {
-                    "$set": {"status": "firstSlHit"},
+                    "$set": {"status": "Closed"},
                     "$push": {
                         "sellOrder":{
                         "orderDetails": obj,
@@ -325,7 +329,11 @@ def placeOrder(price, token,type,level):
         
             resList = list(res)
             print(resList,"listtttttttttttttttttttttttttt")
-            targetlevel = resList[0]
+            if type == "CE":
+                targetlevel = resList[len(resList)-1]
+            
+            if type == "PE":
+                targetlevel = resList[0]
             tar2 = targetlevel["levelDetails"]["level"]
             if token == 260105:
                 offSet = 30
@@ -352,7 +360,7 @@ def placeOrder(price, token,type,level):
             "levelId": level["id"],
             "levelStatus": level["status"],
             "levelType": level["levelDetails"]["type"],
-            "totaLots": lot,
+            "totalLots": lot,
             "E1toE2ratio": E1toE2ratio,
             "exitDetails": {
                 "exit1":{

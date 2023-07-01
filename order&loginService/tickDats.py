@@ -12,8 +12,8 @@ user = collection.find_one({"name" : "SIDDHARTH LAHOTY"})
 kws = KiteTicker(user["apikey"],user["acc_token"])
 # counter = 0
 def on_ticks(ws, ticks,counter = 0):
-    
-    tokens = [260105,256265,257801]
+    # ,256265,257801
+    tokens = [260105]
     print("on tick called")
     orderCollection = db["orders"]
     activeStike = orderCollection.find({"status":{"$in":["Active","trailingSL"]}},{"instrument_token":1,"_id":0})

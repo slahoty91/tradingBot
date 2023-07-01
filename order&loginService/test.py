@@ -243,4 +243,3 @@ res = levelCollection.find({
     }).sort("levelDetails.level",pymongo.ASCENDING)
 print(list(res),"resssssssssssss")
 
-

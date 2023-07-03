@@ -40,7 +40,6 @@ def fetchData(data):
         collection = db["levels"]
         levels = collection.find({"instrument_token" : data["instrument_token"],"status":{"$ne":"Closed"}})
         levels = list(levels)
-        print(len(levels),"levelssssssssss")
         if data['instrument_token'] in indexTokens :
             return checkCondition(data['last_price'], data['instrument_token'],levels)
 
@@ -62,7 +61,6 @@ def getOrdersAfterFirstTraget(data):
         "parent_instrument_token":data["instrument_token"]
         })
     orderList = list(orders)
-    print("getOrdersAfterFirstTraget",len(orderList))
     if len(orderList) == 0:
         return
     
@@ -73,9 +71,9 @@ def getOrdersAfterFirstTraget(data):
         print(currentPrice,stopLoss,"getOrdersAfterFirstTraget",target)
         if currentPrice < stopLoss or currentPrice > target:
             if orderList[0]["status"] == "Active":
-                lotsToSell = orderList[0]["totalLots"]
+                lotsToSell = orderList[0]["totalQty"]
             else:
-                lotsToSell = orderList[0]["exitDetails"]["exit2"]["lots"]
+                lotsToSell = orderList[0]["exitDetails"]["exit2"]["qty"]
             print("EXECUTE SELL ORDER")
 
             if testing == True:
@@ -312,16 +310,28 @@ def placeOrder(price, token,type,level):
             "levelType": level["levelDetails"]["type"],
             "stopLoss": sl,
             "target": tar,
+            "qty": strike[3],
             "status": "Active"
         }
         
         if numOfTarget == 2:
             levelCollection = db["levels"]
-            res = levelCollection.find({
-                "instrument_token" : token,
-                "status": "Active",
-                "levelDetails.type": "bookProfits"
-                },{
+            if type == "CE":
+                query = {
+                    "instrument_token" : token,
+                    "status": "Active",
+                    "levelDetails.type": "bookProfits",
+                    "levelDetails.level": {"$gt":price}
+                    }
+            
+            if type == "PE":
+                query = {
+                    "instrument_token" : token,
+                    "status": "Active",
+                    "levelDetails.type": "bookProfits",
+                    "levelDetails.level": {"$lt":price}
+                    }
+            res = levelCollection.find(query,{
                     "_id":0,
                     "id":1,
                     "levelDetails.level":1
@@ -329,22 +339,46 @@ def placeOrder(price, token,type,level):
         
             resList = list(res)
             print(resList,"listtttttttttttttttttttttttttt")
+            targetLevelId = "NA"
+            if len(resList) == 0:
+
+                targetlevel = price
             if type == "CE":
-                targetlevel = resList[len(resList)-1]
+                if len(resList) > 0:
+                    print("inside this iffffff")
+                    targetlevel = resList[len(resList)-1]
+                    targetLevelId = targetlevel["id"]
+                    tar2 = targetlevel["levelDetails"]["level"] - 0.000375*price
+                if len(resList) == 0 and token == 260105:
+                    tar2 = price + 80
+                if len(resList) == 0 and (token == 256265 or token == 257801):
+                    tar2 = price + 40
             
             if type == "PE":
-                targetlevel = resList[0]
-            tar2 = targetlevel["levelDetails"]["level"]
+                if len(resList) > 0:
+                    targetlevel = resList[0]
+                    targetLevelId = targetlevel["id"]
+                    tar2 = targetlevel["levelDetails"]["level"] - 0.000375*price
+                if len(resList) == 0 and token == 260105:
+                    tar2 = price - 80
+                if len(resList) == 0 and (token == 256265 or token == 257801):
+                    tar2 = price - 40
+
+            print(tar2,0.0375*price,"tarrrrrrrrrrrrrr",price)
+          
             if token == 260105:
-                offSet = 30
+                stop = 30
+                offSet = 15
             
             if token == 256265 or token == 257801:
-                offSet = 12
+                stop = 15
+                offSet = 8
             
-            sl2 = level["levelDetails"]["level"] - offSet
-            lot1 = int(E1toE2ratio*lot/100)
-            lot2 = lot - lot1
-            print(lot1,lot2,"qtyyyyyyyy")
+            sl2 = level["levelDetails"]["level"] - stop
+            qty1 = int(E1toE2ratio*strike[3]/100)
+            qty2 = strike[3] - qty1
+            # tar2 = tar2 - offSet
+
             obj = { 
             # "orderId":orderId,
             "sno": (count + 1),
@@ -360,19 +394,20 @@ def placeOrder(price, token,type,level):
             "levelId": level["id"],
             "levelStatus": level["status"],
             "levelType": level["levelDetails"]["type"],
-            "totalLots": lot,
+            "totalQty": strike[3],
             "E1toE2ratio": E1toE2ratio,
             "exitDetails": {
                 "exit1":{
                     "target": tar,
                     "stopLoss": sl,
-                    "lots": lot1,
+                    "qty": qty1,
                 },
                 "exit2": {
                     "price": price,
                     "target": tar2,
                     "stopLoss": sl2,
-                    "lots": lot2,
+                    "qty": qty2,
+                    "targetLevelId":targetLevelId
                 }
             },
             "status": "Active"
@@ -558,7 +593,7 @@ def checkTargetAndSL(data):
             # currentPrice = data["last_price"] = 104
             if currentPrice <= stpLss1 and result[0]["status"] != "firstTarAchived":
                 print("sell order to be executed")
-                lotsToSell = exitDetails["exit1"]["lots"]
+                lotsToSell = exitDetails["exit1"]["qty"]
                 if testing == True:
                     orderId = random.randint(10000,99999)
                     orderData = fakeOrder(data["last_price"],result[0]["strike"])
@@ -927,7 +962,8 @@ def selectStrike(instrument_token, ltp, type):
     expiry = "2023-07-06"
     if instrument_token == 260105:
         name = "BANKNIFTY"
-        qty = lot*15
+        qty = lot*25
+        
     
     if instrument_token == 256265:
         name = "NIFTY"

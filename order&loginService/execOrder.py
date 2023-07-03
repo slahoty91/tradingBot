@@ -757,23 +757,7 @@ def checkTargetAndSL(data):
 
 def myFunc(e):
     return e['last_price']
-def firstFiveMin(data,endT,curT):
-    collectionName = db["firstFiveMinData"]
-    collectionName.insert_one(data)
-    time_diff = datetime.combine(datetime.min, endT) - datetime.combine(datetime.min, curT)
-    time_diff_sec = time_diff.total_seconds()
-    collectionName = db["levels"]
-    countFiveMinSupport = collectionName.count_documents({
-        "status":{"$ne":"Closed"},
-        "levelDetails.type":{"$in":["fiveMinSup","fiveMinRes"]}
-        })
-    if countFiveMinSupport > 0:
-        return
-    if(time_diff_sec<= 3 and countFiveMinSupport == 0): 
-       for token in indexTokens:
-        getFiveMinLevels(token)
-        
-    return
+
 
 def getFiveMinLevels(token):
 
@@ -822,27 +806,81 @@ def getFiveMinLevels(token):
     }]
     collection = db["levels"]
     res = collection.insert_many(obj)
-    filterObj = {
+    if trend == "SIDEWAYS":
+
+        filterObjRes = {
+                "name": instData["name"],
+                "levelDetails.type":"resistance",
+                "levelDetails.level":{"$gt":upperVal["last_price"]}
+            }
+        
+        
+        filterObjSup = {
+                "name": instData["name"],
+                "levelDetails.type":"support",
+                "levelDetails.level":{"$lt":lowerVal["last_price"]}
+            }
+        
+
+        
+    if trend == "BULLISH":
+         filterObjRes = {
+                "name": instData["name"],
+                "levelDetails.type":"resistance",
+                "levelDetails.level":{"$gt":upperVal["last_price"]}
+            }
+
+         filterObjSup = {
+                "name": instData["name"],
+                "levelDetails.type":"support",
+                "levelDetails.level":{"$lt":upperVal["last_price"]}
+            }
+         
+    if trend == "BEARISH":
+        filterObjRes = {
             "name": instData["name"],
             "levelDetails.type":"resistance",
-            "levelDetails.level":{"$gt":upperVal["last_price"]}
+            "levelDetails.level":{"$gt":lowerVal["last_price"]}
         }
-    re = collection.update_many(
-        filterObj,
-        {
-            "$set":{"status":"Active"}
-        })
-    
-    filterObj = {
+
+        filterObjSup = {
             "name": instData["name"],
-            "levelDetails.type":"support",
+            "levelDetails.type":"resistance",
             "levelDetails.level":{"$lt":lowerVal["last_price"]}
         }
-    res = collection.update_many(
-            filterObj,
-        {
-            "$set":{"status":"Active"}
+
+    reRes = collection.update_many(
+            filterObjRes,
+            {
+                "$set":{"status":"Active"}
+            })
+    reSup = collection.update_many(
+                filterObjSup,
+            {
+                "$set":{"status":"Active"}
+            })
+    
+
+
+
+def firstFiveMin(data,endT,curT):
+
+    collectionName = db["firstFiveMinData"]
+    collectionName.insert_one(data)
+    time_diff = datetime.combine(datetime.min, endT) - datetime.combine(datetime.min, curT)
+    time_diff_sec = time_diff.total_seconds()
+    collectionName = db["levels"]
+    countFiveMinSupport = collectionName.count_documents({
+        "status":{"$ne":"Closed"},
+        "levelDetails.type":{"$in":["fiveMinSup","fiveMinRes"]}
         })
+    if countFiveMinSupport > 0:
+        return
+    if(time_diff_sec<= 3 and countFiveMinSupport == 0): 
+       for token in indexTokens:
+        getFiveMinLevels(token)
+        
+    return
 
 def selectStrikePrice(ltp,name,type):
         

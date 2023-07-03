@@ -172,55 +172,48 @@
 #         return str
 
 # print(selectStrikePrice(19060.0,"NIFTY","CE"))
+
 import mongo
 
 client = mongo.ConnectDB()
 db = client["algoTrading"]
 ordersCollection = db["orders"]
 
-res = ordersCollection.find({"sno":{"$gt":0},"levelId":{"$ne":"Level-057"}})
+res = ordersCollection.find({"sno":{"$gt":8},"levelId":{"$ne":"Level-057"}})
 resList = list(res)
-num = 0
-sum = 0
 sumBankNifty = 0
 sumNifty = 0
 sumFinNifty = 0
-perPos = 0
-perNag = 0
-perSunPos = 0
-perSumNag = 0
+priceBankNifty = 0
+priceNifty = 0
+priceFinNifty = 0
 # print(resList[0])
 for li in resList:
-    updateObj = {}
-    # num = num + 1
-    # print(num,"nummm")
-    pe = (li["bookedAmount"]/li["price"])*100
-    if (pe >0):
-        perPos = perPos + pe
-        perSunPos = perSunPos + 1
-    
-    if (pe <0):
-        perNag = perNag + pe
-        perSumNag = perSumNag + 1
     
     if li["indexName"] == "BANKNIFTY":
         sumBankNifty = sumBankNifty + li["bookedAmount"]*25
+        priceBankNifty = priceBankNifty + li["price"]*25
         # print("booked amount",li["bookedAmount"]*25)
         
     
     if li["indexName"] == "FINNIFTY":
         sumFinNifty = sumFinNifty + li["bookedAmount"]*40
+        priceNifty = priceNifty + li["price"]*40
         # print("booked amount",li["bookedAmount"]*40)
 
     if li["indexName"] == "NIFTY":
         sumNifty = sumNifty + li["bookedAmount"]*50
+        priceFinNifty = priceFinNifty + li["price"]*50
         # print("booked amount",li["bookedAmount"]*50)
     
     # print(perPos,perNag,"perrrrr",pe)
+totalSumBooked = sumBankNifty+sumNifty+sumFinNifty
+totatlInvested = priceBankNifty+priceNifty+priceFinNifty
 
-print(sumBankNifty,sumNifty,sumFinNifty,(sumBankNifty+sumNifty+sumFinNifty)) 
-    
+marginPerCent = (sumBankNifty+sumNifty+sumFinNifty)/(priceBankNifty+priceNifty+priceFinNifty)
 
+
+print(sumBankNifty,sumNifty,sumFinNifty,(sumBankNifty+sumNifty+sumFinNifty),marginPerCent,(priceBankNifty+priceNifty+priceFinNifty))
 
 # import datetime
 

@@ -20,11 +20,11 @@ start_time = datetime.strptime("9:15:2", "%H:%M:%S").time()
 end_time = datetime.strptime("9:20", "%H:%M").time()
 firstFiveMinCounter = 0
 # trend  "BULLISH", "BEARISH", "SIDEWAYS"
-trend = "SIDEWAYS"
-testing = True
+trend = "BULLISH"
+testing = False
 # Index tokens
 indexTokens = [260105,256265,257801]
-firstFiveMinTrade = False
+firstFiveMinTrade = True
 
 
 def fetchData(data):
@@ -98,17 +98,17 @@ def checkCondition(tradingprice,istToken,levels):
     exitTime = datetime.strptime("15:20","%H:%M").time()
     
     for lev in levels:
-        checkSupResStatus(lev,tradingprice)
+        # checkSupResStatus(lev,tradingprice)
         # Add tiem bound condition
         # print(lev,"levvvvvvvv")
         # return
         if lev["name"] == "NIFTY 50" or lev["name"] == "NIFTY FIN SERVICE":
-            entryCE =  lev["levelDetails"]["level"]+5
-            entryPE =  lev["levelDetails"]["level"]-5
+            entryCE =  lev["levelDetails"]["level"]+7
+            entryPE =  lev["levelDetails"]["level"]-7
         
         if lev["name"] == "NIFTY BANK":
-            entryCE =  lev["levelDetails"]["level"]+10
-            entryPE =  lev["levelDetails"]["level"]-10
+            entryCE =  lev["levelDetails"]["level"]+12
+            entryPE =  lev["levelDetails"]["level"]-12
         if current_time <= conditionTime and firstFiveMinTrade == True:
 
             if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice + 10 >lev["levelDetails"]["level"] and lev["status"] == "Active") and trend != "BEARISH":
@@ -166,7 +166,10 @@ def placeOrder(price, token,type,level):
 
         count = collection.count_documents({})
         print(count,"from count documentssss")
-
+        orderStatus = orderData[len(orderData)-1]['status']
+        status = "Active"
+        if orderStatus == "REJECTED":
+            status = "Closed"
 
         obj = { 
             # "orderId":orderId,
@@ -185,7 +188,8 @@ def placeOrder(price, token,type,level):
             "levelType": level["levelDetails"]["type"],
             "stopLoss": sl,
             "target": tar,
-            "status": "Active"
+            "qty": strike[3],
+            "status": status
         }
         orderCollection = db["orders"]
         orderCollection.insert_one(obj)
@@ -234,6 +238,7 @@ def checkTargetAndSL(data):
         stpLss = result[0]["stopLoss"]
         target = result[0]["target"]
         purchasePrice = result[0]["price"]
+        qty = result[0]["qty"]
         currentPrice = data["last_price"]
         trailsSLtrigger = purchasePrice + (purchasePrice*5/100)
         trailSL = purchasePrice + (purchasePrice*1/100)
@@ -264,7 +269,8 @@ def checkTargetAndSL(data):
                 orderData = fakeOrder(data["last_price"],result[0]["strike"])
             # orderData = orderHistory(orderId)
             else:
-                orderId = PlaceSellOrderMarketNFO(result[0]["strike"])
+                # if result[0]["indexName"]
+                orderId = PlaceSellOrderMarketNFO(result[0]["strike"],qty)
                 orderData = orderHistory(orderId)
             orderTime = orderData[len(orderData)-1]['order_timestamp'].strftime("%H:%M:%S.%f")
             sellPrice = orderData[len(orderData)-1]['average_price']

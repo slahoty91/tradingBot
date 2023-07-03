@@ -107,8 +107,8 @@ def orderHistory(orderId):
     except Exception as e:
         print("Order history failed{}".format(e))
 
-ord = orderHistory(230703500203518)
-print("order history",len(ord),ord[len(ord)-1])
+# ord = orderHistory(230703500203518)
+# print("order history",len(ord),ord[len(ord)-1])
 # print(ord[4],'orddddddd',len(ord))
 # time = ord[4]['order_timestamp']
 # print(time)

@@ -213,7 +213,8 @@ totatlInvested = priceBankNifty+priceNifty+priceFinNifty
 marginPerCent = (sumBankNifty+sumNifty+sumFinNifty)/(priceBankNifty+priceNifty+priceFinNifty)
 
 
-print(sumBankNifty,sumNifty,sumFinNifty,(sumBankNifty+sumNifty+sumFinNifty),marginPerCent,(priceBankNifty+priceNifty+priceFinNifty))
+print(sumBankNifty,sumNifty,sumFinNifty,(sumBankNifty+sumNifty+sumFinNifty),marginPerCent,(priceBankNifty+priceNifty+priceFinNifty)) 
+
 
 # import datetime
 

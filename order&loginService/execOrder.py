@@ -21,7 +21,7 @@ end_time = datetime.strptime("9:20", "%H:%M").time()
 firstFiveMinCounter = 0
 # trend  "BULLISH", "BEARISH", "SIDEWAYS"
 trend = "BULLISH"
-testing = False
+testing = True
 # Index tokens
 indexTokens = [260105,256265,257801]
 firstFiveMinTrade = True
@@ -34,7 +34,7 @@ def fetchData(data):
         firstFiveMin(data,end_time,current_time)
     if current_time > end_time:
         collection = db["levels"]
-        levels = collection.find({"instrument_token" : data["instrument_token"],"status":{"$ne":"Closed"}})
+        levels = collection.find({"instrument_token" : data["instrument_token"],"status":"Actives"})
         levels = list(levels)
 
         if data['instrument_token'] in indexTokens :
@@ -111,10 +111,10 @@ def checkCondition(tradingprice,istToken,levels):
             entryPE =  lev["levelDetails"]["level"]-12
         if current_time <= conditionTime and firstFiveMinTrade == True:
 
-            if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice + 10 >lev["levelDetails"]["level"] and lev["status"] == "Active") and trend != "BEARISH":
+            if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice >lev["levelDetails"]["level"]+10 and lev["status"] == "Active") and trend != "BEARISH":
                 return placeOrder(tradingprice, istToken, "CE",lev)
             
-            if (lev["levelDetails"]["type"] == "fiveMinSup" and tradingprice - 10 < lev["levelDetails"]["level"] and lev["status"] == "Active") and trend != "BULLISH":
+            if (lev["levelDetails"]["type"] == "fiveMinSup" and tradingprice < lev["levelDetails"]["level"] -10 and lev["status"] == "Active") and trend != "BULLISH":
                 return placeOrder(tradingprice, istToken, "PE",lev)
 
         if current_time >= startSwing:
@@ -166,7 +166,9 @@ def placeOrder(price, token,type,level):
 
         count = collection.count_documents({})
         print(count,"from count documentssss")
-        orderStatus = orderData[len(orderData)-1]['status']
+        orderStatus = ""
+        if testing == False:
+            orderStatus = orderData[len(orderData)-1]['status']
         status = "Active"
         if orderStatus == "REJECTED":
             status = "Closed"
@@ -193,10 +195,7 @@ def placeOrder(price, token,type,level):
         }
         orderCollection = db["orders"]
         orderCollection.insert_one(obj)
-        orderMasterTable = db["ordersMasterTable"]
-        res = orderMasterTable.update_one({},{
-            "$set":{"orderCount":{"$inc":1}}
-        },True)
+        
         levevCollection = db["levels"]
         levevCollection.update_one(
             {

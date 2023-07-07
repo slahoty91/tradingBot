@@ -6,7 +6,7 @@ db = client["algoTrading"]
 usersCollection = db["userDetails"]
 
 def SendMsg(msg):
-    return
+    
     res = usersCollection.find_one({"name": "SIDDHARTH LAHOTY"},{"_id":0,"telegramInfo":1})
     print(res,"from send msg")
     bot_token = res["telegramInfo"]["bot_token"]

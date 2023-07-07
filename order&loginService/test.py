@@ -210,7 +210,7 @@ for li in resList:
 totalSumBooked = sumBankNifty+sumNifty+sumFinNifty
 totatlInvested = priceBankNifty+priceNifty+priceFinNifty
 
-marginPerCent = (sumBankNifty+sumNifty+sumFinNifty)/(priceBankNifty+priceNifty+priceFinNifty)
+marginPerCent = (sumBankNifty+sumNifty+sumFinNifty)/(10000)
 
 
 print(sumBankNifty,sumNifty,sumFinNifty,(sumBankNifty+sumNifty+sumFinNifty),marginPerCent,(priceBankNifty+priceNifty+priceFinNifty)) 

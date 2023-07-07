@@ -21,7 +21,7 @@ end_time = datetime.strptime("9:20", "%H:%M").time()
 firstFiveMinCounter = 0
 # trend  "BULLISH", "BEARISH", "SIDEWAYS"
 trend = "BULLISH"
-testing = True
+testing = False
 # Index tokens
 indexTokens = [260105,256265,257801]
 firstFiveMinTrade = True
@@ -34,7 +34,7 @@ def fetchData(data):
         firstFiveMin(data,end_time,current_time)
     if current_time > end_time:
         collection = db["levels"]
-        levels = collection.find({"instrument_token" : data["instrument_token"],"status":"Actives"})
+        levels = collection.find({"instrument_token" : data["instrument_token"],"status":"Active"})
         levels = list(levels)
 
         if data['instrument_token'] in indexTokens :
@@ -91,7 +91,7 @@ def updateSlTarForTesting(data):
     return
 
 def checkCondition(tradingprice,istToken,levels):
-
+    # print(len(levels),"level lengthhhhhh",tradingprice)
     current_time = datetime.now().time()
     conditionTime = datetime.strptime("9:30", "%H:%M").time()
     startSwing = datetime.strptime("9:30", "%H:%M").time()
@@ -100,25 +100,25 @@ def checkCondition(tradingprice,istToken,levels):
     for lev in levels:
         # checkSupResStatus(lev,tradingprice)
         # Add tiem bound condition
-        # print(lev,"levvvvvvvv")
+        # print(lev["levelDetails"]["level"],"levvvvvvvv",lev["levelDetails"]["type"])
         # return
         if lev["name"] == "NIFTY 50" or lev["name"] == "NIFTY FIN SERVICE":
-            entryCE =  lev["levelDetails"]["level"]+7
-            entryPE =  lev["levelDetails"]["level"]-7
+            entryCE =  lev["levelDetails"]["level"]+5
+            entryPE =  lev["levelDetails"]["level"]-5
         
         if lev["name"] == "NIFTY BANK":
-            entryCE =  lev["levelDetails"]["level"]+12
-            entryPE =  lev["levelDetails"]["level"]-12
+            entryCE =  lev["levelDetails"]["level"]+10
+            entryPE =  lev["levelDetails"]["level"]-10
         if current_time <= conditionTime and firstFiveMinTrade == True:
 
-            if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice >lev["levelDetails"]["level"]+10 and lev["status"] == "Active") and trend != "BEARISH":
+            if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice > entryCE and lev["status"] == "Active") and trend != "BEARISH":
                 return placeOrder(tradingprice, istToken, "CE",lev)
             
-            if (lev["levelDetails"]["type"] == "fiveMinSup" and tradingprice < lev["levelDetails"]["level"] -10 and lev["status"] == "Active") and trend != "BULLISH":
+            if (lev["levelDetails"]["type"] == "fiveMinSup" and tradingprice < entryPE and lev["status"] == "Active") and trend != "BULLISH":
                 return placeOrder(tradingprice, istToken, "PE",lev)
 
         if current_time >= startSwing:
-           
+            print(tradingprice,entryCE,lev["levelDetails"]["level"],"entryyyy")
             if (lev["levelDetails"]["type"] == "support") and lev["levelDetails"]["level"]<tradingprice<entryCE and lev["status"] == "Active":
                 return placeOrder(tradingprice, istToken, "CE",lev)
             
@@ -149,7 +149,7 @@ def placeOrder(price, token,type,level):
             "status":1,"_id":0
         })
     # for now do one trade at a time
-    print(status,"statuss from place order")
+    print(status,"statuss from place order",token,level)
     if status == None :
 
         strike = selectStrike(token,price,type)
@@ -303,7 +303,7 @@ def checkTargetAndSL(data):
            
             # update support resistance table
             print("just before level update")
-            status = "Passive"
+            status = "Closed"
             # if tradeResult == "Loss":
             #     status = "Passive"
 
@@ -407,48 +407,51 @@ def getFiveMinLevels(token):
     }]
     collection = db["levels"]
     res = collection.insert_many(obj)
-    if trend == "SIDEWAYS":
-
-        filterObjRes = {
+    filterObjRes = {
                 "name": instData["name"],
+                "status":"Passive",
                 "levelDetails.type":"resistance",
                 "levelDetails.level":{"$gt":upperVal["last_price"]}
             }
         
         
-        filterObjSup = {
-                "name": instData["name"],
-                "levelDetails.type":"support",
-                "levelDetails.level":{"$lt":lowerVal["last_price"]}
-            }
-        
-
-        
-    if trend == "BULLISH":
-         filterObjRes = {
-                "name": instData["name"],
-                "levelDetails.type":"resistance",
-                "levelDetails.level":{"$gt":upperVal["last_price"]}
-            }
-
-         filterObjSup = {
-                "name": instData["name"],
-                "levelDetails.type":"support",
-                "levelDetails.level":{"$lt":upperVal["last_price"]}
-            }
-         
-    if trend == "BEARISH":
-        filterObjRes = {
+    filterObjSup = {
             "name": instData["name"],
-            "levelDetails.type":"resistance",
-            "levelDetails.level":{"$gt":lowerVal["last_price"]}
-        }
-
-        filterObjSup = {
-            "name": instData["name"],
-            "levelDetails.type":"resistance",
+            "status":"Passive",
+            "levelDetails.type":"support",
             "levelDetails.level":{"$lt":lowerVal["last_price"]}
         }
+    # if trend == "SIDEWAYS":
+
+        
+        
+
+        
+    # if trend == "BULLISH":
+    #      filterObjRes = {
+    #             "name": instData["name"],
+    #             "levelDetails.type":"resistance",
+    #             "levelDetails.level":{"$gt":upperVal["last_price"]}
+    #         }
+
+    #      filterObjSup = {
+    #             "name": instData["name"],
+    #             "levelDetails.type":"support",
+    #             "levelDetails.level":{"$lt":upperVal["last_price"]}
+    #         }
+         
+    # if trend == "BEARISH":
+    #     filterObjRes = {
+    #         "name": instData["name"],
+    #         "levelDetails.type":"resistance",
+    #         "levelDetails.level":{"$gt":lowerVal["last_price"]}
+    #     }
+
+    #     filterObjSup = {
+    #         "name": instData["name"],
+    #         "levelDetails.type":"resistance",
+    #         "levelDetails.level":{"$lt":lowerVal["last_price"]}
+    #     }
 
     reRes = collection.update_many(
             filterObjRes,
@@ -504,7 +507,7 @@ def selectStrikePrice(ltp,name,type):
 def selectStrike(instrument_token, ltp, type):
     
     name = ""
-    expiry = "2023-07-06"
+    expiry = "2023-07-13"
     if instrument_token == 260105:
         name = "BANKNIFTY"
         qty = lot*25
@@ -515,7 +518,7 @@ def selectStrike(instrument_token, ltp, type):
 
     if instrument_token == 257801:
         name = "FINNIFTY"
-        expiry = "2023-07-04"
+        expiry = "2023-07-11"
         qty = lot*40
 
     strike = selectStrikePrice(ltp,name,type)

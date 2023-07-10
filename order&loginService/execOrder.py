@@ -20,11 +20,11 @@ start_time = datetime.strptime("9:15:2", "%H:%M:%S").time()
 end_time = datetime.strptime("9:20", "%H:%M").time()
 firstFiveMinCounter = 0
 # trend  "BULLISH", "BEARISH", "SIDEWAYS"
-trend = "BULLISH"
+trend = "SIDEWAYS"
 testing = True
 # Index tokens
 indexTokens = [260105,256265,257801]
-firstFiveMinTrade = True
+
 
 
 def fetchData(data):
@@ -91,7 +91,8 @@ def updateSlTarForTesting(data):
     return
 
 def checkCondition(tradingprice,istToken,levels):
-    print(len(levels),"level lengthhhhhh",tradingprice)
+    # print(len(levels),"level lengthhhhhh",tradingprice)
+    firstFiveMinTrade = True
     current_time = datetime.now().time()
     conditionTime = datetime.strptime("9:30", "%H:%M").time()
     startSwing = datetime.strptime("9:30", "%H:%M").time()
@@ -102,7 +103,10 @@ def checkCondition(tradingprice,istToken,levels):
         # Add tiem bound condition
         # print(lev["levelDetails"]["level"],"levvvvvvvv",lev["levelDetails"]["type"])
         # return
+        rangeLow = 0
+        rangeUp = 0
         if lev["name"] == "NIFTY 50" or lev["name"] == "NIFTY FIN SERVICE":
+            
             entryCE =  lev["levelDetails"]["level"]+5
             entryPE =  lev["levelDetails"]["level"]-5
             if lev["levelDetails"]["type"] == "fiveMinRes" or lev["levelDetails"]["type"] == "fiveMinSup":
@@ -116,39 +120,41 @@ def checkCondition(tradingprice,istToken,levels):
                 rangeUp =  lev["levelDetails"]["level"] + 30
                 rangeLow = lev["levelDetails"]["level"] - 30
             
-        levelCollection = db["levels"]
-        filterQuery = {
-            "instrument_token": istToken,
-            "status": {"$ne":"Closed"},
-            "levelDetails.type":{'$nin':["fiveMinRes","fiveMinSup"]},
-            "levelDetails.level":{
-                "$gte": rangeLow,
-                "$lte": rangeUp
-            }
-        } 
-        print(entryPE,"entryyyyyyy")
-        levelToAvoid = levelCollection.count_documents(filterQuery)
-        if levelToAvoid > 0:
-            firstFiveMinTrade = False
+        # levelCollection = db["levels"]
+        # filterQuery = {
+        #     "instrument_token": istToken,
+        #     "status": {"$ne":"Closed"},
+        #     "levelDetails.type":{'$nin':["fiveMinRes","fiveMinSup"]},
+        #     "levelDetails.level":{
+        #         "$gte": rangeLow,
+        #         "$lte": rangeUp
+        #     }
+        # } 
+        # print(entryPE,"entryyyyyyy")
+        # levelToAvoid = levelCollection.count_documents(filterQuery)
+        # if levelToAvoid > 0:
+        #     firstFiveMinTrade = False
         
-        print(levelToAvoid,filterQuery,"filter queryyyyyyy")
+        # print(levelToAvoid,filterQuery,"filter queryyyyyyy")
 
         if current_time <= conditionTime:
 
-            # levelCollection = db["levels"]
-            # filterQuery = {
-            #     "status": {"$ne":"Closed"},
-            #     "levelDetails.level":{
-            #         "$gte": rangeLow,
-            #         "$lte": rangeUp
-            #     }
-            # } 
+            levelCollection = db["levels"]
+            filterQuery = {
+               "instrument_token": istToken,
+                "status": {"$ne":"Closed"},
+                "levelDetails.type":{'$nin':["fiveMinRes","fiveMinSup"]},
+                "levelDetails.level":{
+                    "$gte": rangeLow,
+                    "$lte": rangeUp
+                }
+            } 
 
-            # levelToAvoid = levelCollection.count_documents(filterQuery)
-            # if len(levelToAvoid) > 0:
-            #     firstFiveMinTrade = False
+            levelToAvoid = levelCollection.count_documents(filterQuery)
+            if levelToAvoid > 0:
+                firstFiveMinTrade = False
             
-            # print(levelToAvoid,filterQuery,"filter queryyyyyyy")
+            print(levelToAvoid,filterQuery,"filter queryyyyyyy",firstFiveMinTrade)
             if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice > entryCE and lev["status"] == "Active") and trend != "BEARISH" and firstFiveMinTrade == True:
                 
                 return placeOrder(tradingprice, istToken, "CE",lev)
@@ -157,7 +163,7 @@ def checkCondition(tradingprice,istToken,levels):
                 return placeOrder(tradingprice, istToken, "PE",lev)
 
         if current_time >= startSwing:
-            print(tradingprice,entryCE,lev["levelDetails"]["level"],"entryyyy")
+            # print(tradingprice,entryCE,lev["levelDetails"]["level"],"entryyyy")
             if (lev["levelDetails"]["type"] == "support") and lev["levelDetails"]["level"]<tradingprice<entryCE and lev["status"] == "Active":
                 return placeOrder(tradingprice, istToken, "CE",lev)
             
@@ -666,10 +672,10 @@ def checkSupResStatus(level, indexAt):
               }  
             })
         
-        if res.modified_count>0:
-            msg = ["Level with ID",level["id"],"and type",level["levelDetails"]["type"],", from index",level["name"],"at,",str(indexAt),"interchanged"]
-            result = " ".join(msg)
-            SendMsg(result)
+        # if res.modified_count>0:
+        #     msg = ["Level with ID",level["id"],"and type",level["levelDetails"]["type"],", from index",level["name"],"at,",str(indexAt),"interchanged"]
+        #     result = " ".join(msg)
+        #     SendMsg(result)
     
     currentTime = datetime.now().time()
     start_time = datetime.strptime("9:29:50", "%H:%M:%S").time()

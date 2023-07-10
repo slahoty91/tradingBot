@@ -21,7 +21,7 @@ end_time = datetime.strptime("9:20", "%H:%M").time()
 firstFiveMinCounter = 0
 # trend  "BULLISH", "BEARISH", "SIDEWAYS"
 trend = "BULLISH"
-testing = False
+testing = True
 # Index tokens
 indexTokens = [260105,256265,257801]
 firstFiveMinTrade = True
@@ -91,30 +91,69 @@ def updateSlTarForTesting(data):
     return
 
 def checkCondition(tradingprice,istToken,levels):
-    # print(len(levels),"level lengthhhhhh",tradingprice)
+    print(len(levels),"level lengthhhhhh",tradingprice)
     current_time = datetime.now().time()
     conditionTime = datetime.strptime("9:30", "%H:%M").time()
     startSwing = datetime.strptime("9:30", "%H:%M").time()
     exitTime = datetime.strptime("15:20","%H:%M").time()
     
     for lev in levels:
-        # checkSupResStatus(lev,tradingprice)
+        checkSupResStatus(lev,tradingprice)
         # Add tiem bound condition
         # print(lev["levelDetails"]["level"],"levvvvvvvv",lev["levelDetails"]["type"])
         # return
         if lev["name"] == "NIFTY 50" or lev["name"] == "NIFTY FIN SERVICE":
             entryCE =  lev["levelDetails"]["level"]+5
             entryPE =  lev["levelDetails"]["level"]-5
+            if lev["levelDetails"]["type"] == "fiveMinRes" or lev["levelDetails"]["type"] == "fiveMinSup":
+                rangeUp =  lev["levelDetails"]["level"] + 15
+                rangeLow = lev["levelDetails"]["level"] - 15
         
         if lev["name"] == "NIFTY BANK":
-            entryCE =  lev["levelDetails"]["level"]+10
-            entryPE =  lev["levelDetails"]["level"]-10
-        if current_time <= conditionTime and firstFiveMinTrade == True:
+            entryCE =  lev["levelDetails"]["level"] + 10
+            entryPE =  lev["levelDetails"]["level"] - 10
+            if lev["levelDetails"]["type"] == "fiveMinRes" or lev["levelDetails"]["type"] == "fiveMinSup":
+                rangeUp =  lev["levelDetails"]["level"] + 30
+                rangeLow = lev["levelDetails"]["level"] - 30
+            
+        levelCollection = db["levels"]
+        filterQuery = {
+            "instrument_token": istToken,
+            "status": {"$ne":"Closed"},
+            "levelDetails.type":{'$nin':["fiveMinRes","fiveMinSup"]},
+            "levelDetails.level":{
+                "$gte": rangeLow,
+                "$lte": rangeUp
+            }
+        } 
+        print(entryPE,"entryyyyyyy")
+        levelToAvoid = levelCollection.count_documents(filterQuery)
+        if levelToAvoid > 0:
+            firstFiveMinTrade = False
+        
+        print(levelToAvoid,filterQuery,"filter queryyyyyyy")
 
-            if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice > entryCE and lev["status"] == "Active") and trend != "BEARISH":
+        if current_time <= conditionTime:
+
+            # levelCollection = db["levels"]
+            # filterQuery = {
+            #     "status": {"$ne":"Closed"},
+            #     "levelDetails.level":{
+            #         "$gte": rangeLow,
+            #         "$lte": rangeUp
+            #     }
+            # } 
+
+            # levelToAvoid = levelCollection.count_documents(filterQuery)
+            # if len(levelToAvoid) > 0:
+            #     firstFiveMinTrade = False
+            
+            # print(levelToAvoid,filterQuery,"filter queryyyyyyy")
+            if (lev["levelDetails"]["type"] == "fiveMinRes" and tradingprice > entryCE and lev["status"] == "Active") and trend != "BEARISH" and firstFiveMinTrade == True:
+                
                 return placeOrder(tradingprice, istToken, "CE",lev)
             
-            if (lev["levelDetails"]["type"] == "fiveMinSup" and tradingprice < entryPE and lev["status"] == "Active") and trend != "BULLISH":
+            if (lev["levelDetails"]["type"] == "fiveMinSup" and tradingprice < entryPE and lev["status"] == "Active") and trend != "BULLISH" and firstFiveMinTrade == True:
                 return placeOrder(tradingprice, istToken, "PE",lev)
 
         if current_time >= startSwing:
@@ -125,15 +164,6 @@ def checkCondition(tradingprice,istToken,levels):
             if lev["levelDetails"]["type"] == "resistance" and entryPE<tradingprice<lev["levelDetails"]["level"] and lev["status"] == "Active":
                 return placeOrder(tradingprice, istToken, "PE",lev)
             
-               
-            # if (lev["levelDetails"]["type"] == "testedSup" and lev["levelDetails"]["level"] + 25<=tradingprice<lev["levelDetails"]["level"] + 35 and lev["status"] == "Active"):
-            #     return placeOrder(tradingprice, istToken, "CE",lev)
-            
-            # if (lev["levelDetails"]["type"] == "testedRes" and lev["levelDetails"]["level"] - 35>=tradingprice>lev["levelDetails"]["level"] - 25 and lev["status"] == "Active"):
-            #     return placeOrder(tradingprice, istToken, "PE",lev)
-
-        # if current_time > exitTime:
-        #     return exitOrder()
 
     return False
 
@@ -191,7 +221,8 @@ def placeOrder(price, token,type,level):
             "stopLoss": sl,
             "target": tar,
             "qty": strike[3],
-            "status": status
+            "status": status,
+            "testing": testing
         }
         orderCollection = db["orders"]
         orderCollection.insert_one(obj)
@@ -558,18 +589,16 @@ def exitOrder():
 # CHANGING STATUS MANUALLY FOR NOW
 def checkSupResStatus(level, indexAt):
     
-    # orderCol = db["orders"]
-    # orders = orderCol.find({},{"tradeResult":1,"_id":0})
-    # orderList = list(orders)
-    # for ord in orderList:
-    # print(level)
+    levelCollection = db["levels"]
+
     if level["interchangable"] == True:
         
-        if level["name"] == "NIFTY BANK" and level["levelDetails"]["type"] == "resistance" and level["levelDetails"]["level"] +28 < indexAt < level["levelDetails"]["level"] + 35:
+        if level["name"] == "NIFTY BANK" and level["levelDetails"]["type"] == "resistance" and level["levelDetails"]["level"] + 50 < indexAt < level["levelDetails"]["level"] + 60:
             
-            levelCollection = db["levels"]
+            
             res = levelCollection.update_one({
                 "id": level["id"],
+                "levelDetails.type": "resistance",
                 "status": {"$ne": "Closed"}
             },
             {
@@ -582,16 +611,12 @@ def checkSupResStatus(level, indexAt):
 
               }  
             })
-        
-            if res.modified_count>0:
-                msg = ["Level with ID",level["id"],", from index",level["name"],"at,",str(indexAt),"converted to Support"]
-                result = " ".join(msg)
-                SendMsg(result)
 
-        if level["name"] == "NIFTY BANK" and level["levelDetails"]["type"] == "support" and level["levelDetails"]["level"] - 35 < indexAt < level["levelDetails"]["level"] - 28:
-            levelCollection = db["levels"]
+        if level["name"] == "NIFTY BANK" and level["levelDetails"]["type"] == "support" and level["levelDetails"]["level"] - 60 < indexAt < level["levelDetails"]["level"] - 50:
+            
             res = levelCollection.update_one({
                 "id": level["id"],
+                "levelDetails.type": "support",
                 "status": {"$ne": "Closed"}
             },
             {
@@ -604,16 +629,12 @@ def checkSupResStatus(level, indexAt):
               }  
             })
         
-            if res.modified_count>0:
-                msg = ["Level with ID",level["id"],", from index",level["name"],"at,",str(indexAt),"converted to Resistance"]
-                result = " ".join(msg)
-                SendMsg(result)
+        if (level["name"] == "NIFTY 50" or level["name"] =="NIFTY FIN SERVICE") and level["levelDetails"]["type"] == "resistance" and level["levelDetails"]["level"] + 20 < indexAt < level["levelDetails"]["level"] + 25:
         
-        if (level["name"] == "NIFTY 50" or level["name"] =="NIFTY FIN SERVICE") and level["levelDetails"]["type"] == "resistance" and level["levelDetails"]["level"] +14 < indexAt < level["levelDetails"]["level"] + 20:
-        
-            levelCollection = db["levels"]
+            
             res = levelCollection.update_one({
                 "id": level["id"],
+                "levelDetails.type": "resistance",
                 "status": {"$ne": "Closed"}
             },
             {
@@ -626,19 +647,14 @@ def checkSupResStatus(level, indexAt):
               }  
             })
             
-        
-            if res.modified_count>0:
-                msg = ["Level with ID",level["id"],", from index",level["name"],"at,",str(indexAt),"converted to Support"]
-                result = " ".join(msg)
-               
-                SendMsg(result)
 
-        if (level["name"] == "NIFTY 50" or level["name"] =="NIFTY FIN SERVICE") and level["levelDetails"]["type"] == "support" and level["levelDetails"]["level"] - 20 < indexAt < level["levelDetails"]["level"] - 14:
+        if (level["name"] == "NIFTY 50" or level["name"] =="NIFTY FIN SERVICE") and level["levelDetails"]["type"] == "support" and level["levelDetails"]["level"] - 25 < indexAt < level["levelDetails"]["level"] - 20:
             
-            levelCollection = db["levels"]
+            
             res = levelCollection.update_one({
                 "id": level["id"],
-                "status": {"$ne": "Closed"}
+                "status": {"$ne": "Closed"},
+                "levelDetails.type": "support"
             },
             {
               "$set":{
@@ -650,12 +666,41 @@ def checkSupResStatus(level, indexAt):
               }  
             })
         
-            if res.modified_count>0:
-                msg = ["Level with ID",level["id"],", from index",level["name"],"at,",str(indexAt),"converted to Support"]
-                result = " ".join(msg)
-                SendMsg(result)
-            
-
+        if res.modified_count>0:
+            msg = ["Level with ID",level["id"],"and type",level["levelDetails"]["type"],", from index",level["name"],"at,",str(indexAt),"interchanged"]
+            result = " ".join(msg)
+            SendMsg(result)
+    
+    currentTime = datetime.now().time()
+    start_time = datetime.strptime("9:29:50", "%H:%M:%S").time()
+    end_time = datetime.strptime("9:29:58", "%H:%M:%S").time()
+    if start_time <= currentTime <= end_time:
+        if level["levelDetails"]["type"] == "support" and level["levelDetails"]["level"] > indexAt:
+            filterQuery = {
+                "id": level["id"],
+                "status": "Active"
+            }
+            updateQuery = {
+                "set":{
+                    "status": "Passive"
+                }
+            }
+        
+        if level["levelDetails"]["type"] == "resistance" and level["levelDetails"]["level"] < indexAt:
+            filterQuery = {
+                "id": level["id"],
+                "status": "Active"
+            }
+            updateQuery = {
+                "set":{
+                    "status": "Passive"
+                }
+            }
+        res = levelCollection.update_one(filterQuery,updateQuery)
+        if res.modified_count>0:
+            msg = ["Level with ID",level["id"],"and type",level["levelDetails"]["type"],", from index",level["name"],"at,",str(indexAt),"changed to passive"]
+            result = " ".join(msg)
+            SendMsg(result)
     return
 
 def changeType():

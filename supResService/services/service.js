@@ -38,6 +38,7 @@ module.exports.addSuppRes = async (data)=>{
         count = await surResModel.count({})
         console.log(count,"counttttttttttttt")
         obj.id = `Level-0${count+1}`
+        obj.sno = count + 1
         obj.name = result.name
         obj.status = data.status == "Active"? data.status : "Passive"
         obj.instrument_token = result.instrument_token

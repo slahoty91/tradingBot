@@ -20,8 +20,8 @@ start_time = datetime.strptime("9:15:2", "%H:%M:%S").time()
 end_time = datetime.strptime("9:20", "%H:%M").time()
 firstFiveMinCounter = 0
 # trend  "BULLISH", "BEARISH", "SIDEWAYS"
-trend = "SIDEWAYS"
-testing = True
+trend = "BEARISH"
+testing = False
 # Index tokens
 indexTokens = [260105,256265,257801]
 
@@ -91,7 +91,7 @@ def updateSlTarForTesting(data):
     return
 
 def checkCondition(tradingprice,istToken,levels):
-    # print(len(levels),"level lengthhhhhh",tradingprice)
+    print(len(levels),"level lengthhhhhh",tradingprice)
     firstFiveMinTrade = True
     current_time = datetime.now().time()
     conditionTime = datetime.strptime("9:30", "%H:%M").time()
@@ -99,7 +99,7 @@ def checkCondition(tradingprice,istToken,levels):
     exitTime = datetime.strptime("15:20","%H:%M").time()
     
     for lev in levels:
-        checkSupResStatus(lev,tradingprice)
+        # checkSupResStatus(lev,tradingprice)
         # Add tiem bound condition
         # print(lev["levelDetails"]["level"],"levvvvvvvv",lev["levelDetails"]["type"])
         # return
@@ -120,25 +120,9 @@ def checkCondition(tradingprice,istToken,levels):
                 rangeUp =  lev["levelDetails"]["level"] + 30
                 rangeLow = lev["levelDetails"]["level"] - 30
             
-        # levelCollection = db["levels"]
-        # filterQuery = {
-        #     "instrument_token": istToken,
-        #     "status": {"$ne":"Closed"},
-        #     "levelDetails.type":{'$nin':["fiveMinRes","fiveMinSup"]},
-        #     "levelDetails.level":{
-        #         "$gte": rangeLow,
-        #         "$lte": rangeUp
-        #     }
-        # } 
-        # print(entryPE,"entryyyyyyy")
-        # levelToAvoid = levelCollection.count_documents(filterQuery)
-        # if levelToAvoid > 0:
-        #     firstFiveMinTrade = False
         
-        # print(levelToAvoid,filterQuery,"filter queryyyyyyy")
-
         if current_time <= conditionTime:
-
+            
             levelCollection = db["levels"]
             filterQuery = {
                "instrument_token": istToken,
@@ -164,10 +148,10 @@ def checkCondition(tradingprice,istToken,levels):
 
         if current_time >= startSwing:
             # print(tradingprice,entryCE,lev["levelDetails"]["level"],"entryyyy")
-            if (lev["levelDetails"]["type"] == "support") and lev["levelDetails"]["level"]<tradingprice<entryCE and lev["status"] == "Active":
+            if (lev["levelDetails"]["type"] == "support") and lev["levelDetails"]["level"]<tradingprice<entryCE and lev["status"] == "Active" and trend != "BEARISH":
                 return placeOrder(tradingprice, istToken, "CE",lev)
             
-            if lev["levelDetails"]["type"] == "resistance" and entryPE<tradingprice<lev["levelDetails"]["level"] and lev["status"] == "Active":
+            if lev["levelDetails"]["type"] == "resistance" and entryPE<tradingprice<lev["levelDetails"]["level"] and lev["status"] == "Active" and trend != "BULLISH":
                 return placeOrder(tradingprice, istToken, "PE",lev)
             
 
@@ -555,7 +539,7 @@ def selectStrike(instrument_token, ltp, type):
 
     if instrument_token == 257801:
         name = "FINNIFTY"
-        expiry = "2023-07-11"
+        expiry = "2023-07-18"
         qty = lot*40
 
     strike = selectStrikePrice(ltp,name,type)

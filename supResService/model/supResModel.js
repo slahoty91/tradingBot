@@ -44,6 +44,11 @@ const supResSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
+    sno:{
+        type: Number,
+        require: true,
+        unique: true
+    },
     name: {
         type: String,
         required: true,

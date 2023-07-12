@@ -173,47 +173,47 @@
 
 # print(selectStrikePrice(19060.0,"NIFTY","CE"))
 
-import mongo
+# import mongo
 
-client = mongo.ConnectDB()
-db = client["algoTrading"]
-ordersCollection = db["orders"]
+# client = mongo.ConnectDB()
+# db = client["algoTrading"]
+# ordersCollection = db["orders"]
 
-res = ordersCollection.find({"sno":{"$gt":8},"levelId":{"$ne":"Level-057"}})
-resList = list(res)
-sumBankNifty = 0
-sumNifty = 0
-sumFinNifty = 0
-priceBankNifty = 0
-priceNifty = 0
-priceFinNifty = 0
-# print(resList[0])
-for li in resList:
+# res = ordersCollection.find({"sno":{"$gt":8},"levelId":{"$ne":"Level-057"}})
+# resList = list(res)
+# sumBankNifty = 0
+# sumNifty = 0
+# sumFinNifty = 0
+# priceBankNifty = 0
+# priceNifty = 0
+# priceFinNifty = 0
+# # print(resList[0])
+# for li in resList:
     
-    if li["indexName"] == "BANKNIFTY":
-        sumBankNifty = sumBankNifty + li["bookedAmount"]*25
-        priceBankNifty = priceBankNifty + li["price"]*25
-        # print("booked amount",li["bookedAmount"]*25)
+#     if li["indexName"] == "BANKNIFTY":
+#         sumBankNifty = sumBankNifty + li["bookedAmount"]*25
+#         priceBankNifty = priceBankNifty + li["price"]*25
+#         # print("booked amount",li["bookedAmount"]*25)
         
     
-    if li["indexName"] == "FINNIFTY":
-        sumFinNifty = sumFinNifty + li["bookedAmount"]*40
-        priceNifty = priceNifty + li["price"]*40
-        # print("booked amount",li["bookedAmount"]*40)
+#     if li["indexName"] == "FINNIFTY":
+#         sumFinNifty = sumFinNifty + li["bookedAmount"]*40
+#         priceNifty = priceNifty + li["price"]*40
+#         # print("booked amount",li["bookedAmount"]*40)
 
-    if li["indexName"] == "NIFTY":
-        sumNifty = sumNifty + li["bookedAmount"]*50
-        priceFinNifty = priceFinNifty + li["price"]*50
-        # print("booked amount",li["bookedAmount"]*50)
+#     if li["indexName"] == "NIFTY":
+#         sumNifty = sumNifty + li["bookedAmount"]*50
+#         priceFinNifty = priceFinNifty + li["price"]*50
+#         # print("booked amount",li["bookedAmount"]*50)
     
-    # print(perPos,perNag,"perrrrr",pe)
-totalSumBooked = sumBankNifty+sumNifty+sumFinNifty
-totatlInvested = priceBankNifty+priceNifty+priceFinNifty
+#     # print(perPos,perNag,"perrrrr",pe)
+# totalSumBooked = sumBankNifty+sumNifty+sumFinNifty
+# totatlInvested = priceBankNifty+priceNifty+priceFinNifty
 
-marginPerCent = (sumBankNifty+sumNifty+sumFinNifty)/(10000)
+# marginPerCent = (sumBankNifty+sumNifty+sumFinNifty)/(10000)
 
 
-print(sumBankNifty,sumNifty,sumFinNifty,(sumBankNifty+sumNifty+sumFinNifty),marginPerCent,(priceBankNifty+priceNifty+priceFinNifty)) 
+# print(sumBankNifty,sumNifty,sumFinNifty,(sumBankNifty+sumNifty+sumFinNifty),marginPerCent,(priceBankNifty+priceNifty+priceFinNifty)) 
 
 
 # import datetime
@@ -223,3 +223,30 @@ print(sumBankNifty,sumNifty,sumFinNifty,(sumBankNifty+sumNifty+sumFinNifty),marg
 
 # obj["expiry"] = obj["expiry"].strftime('%Y-%m-%d')
 # print(obj)
+trend  =  "BULLISH"
+obj = {
+  "id": "Level-01",
+  "name": "NIFTY BANK",
+  "tradingsymbol": "NIFTY BANK",
+  "interchangable": False,
+  "status": "Closed",
+  "instrument_token": 260105,
+  "forDevPurpuouse": False,
+  "levelDetails": {
+    "level": 44784,
+    "type": "support",
+    "testCount": 0,
+    "interChanged": False,
+    "_id": {
+      "$oid": "64a23d380ba541903d9a226f"
+    }
+  },
+  "dateCreated": {
+    "$date": "2023-07-03T03:15:04.138Z"
+  },
+  "tradeResults": [],
+  "__v": 0
+}
+
+cond = (obj["levelDetails"]["type"] == "superSupport" and trend == "BULLISH")
+print(cond)

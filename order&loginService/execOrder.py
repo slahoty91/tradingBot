@@ -21,7 +21,7 @@ end_time = datetime.strptime("9:20", "%H:%M").time()
 firstFiveMinCounter = 0
 # trend  "BULLISH", "BEARISH", "SIDEWAYS"
 trend = "BEARISH"
-testing = False
+testing = True
 # Index tokens
 indexTokens = [260105,256265,257801]
 

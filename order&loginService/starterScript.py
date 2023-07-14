@@ -56,3 +56,11 @@ def autoLogin():
 
 autoLogin()
 
+def clearDb():
+    
+   levelCollection = db["levels"]
+   levelCollection.update_many({},{"$set":{"status":"Closed"}})
+   firstFiveMinCollection = db["firstFiveMinData"]
+   firstFiveMinCollection.delete_many({})
+
+clearDb()

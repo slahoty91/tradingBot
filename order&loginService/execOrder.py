@@ -91,7 +91,7 @@ def updateSlTarForTesting(data):
     return
 
 def checkCondition(tradingprice,istToken,levels):
-    print(len(levels),"level lengthhhhhh",tradingprice)
+    # print(len(levels),"level lengthhhhhh",tradingprice)
     firstFiveMinTrade = True
     current_time = datetime.now().time()
     conditionTime = datetime.strptime("9:30", "%H:%M").time()
@@ -99,7 +99,7 @@ def checkCondition(tradingprice,istToken,levels):
     exitTime = datetime.strptime("15:20","%H:%M").time()
     
     for lev in levels:
-        # checkSupResStatus(lev,tradingprice)
+        checkSupResStatus(lev,tradingprice)
         # Add tiem bound condition
         # print(lev["levelDetails"]["level"],"levvvvvvvv",lev["levelDetails"]["type"])
         # return
@@ -253,6 +253,19 @@ def placeOrder(price, token,type,level):
     
     return False
 
+def checkTimeCondition(executedAt):
+
+    executed_datetime = datetime.strptime(executedAt, "%H:%M:%S.%f")
+    target_datetime = executed_datetime + timedelta(seconds=75)
+    current_time = datetime.now().time()
+    current_datetime = datetime.combine(datetime.today(), current_time)
+    if current_datetime.time() > target_datetime.time():
+        return True
+    else:
+        return False
+
+    
+
 def checkTargetAndSL(data):
 
     orderCollection = db["orders"]
@@ -272,27 +285,9 @@ def checkTargetAndSL(data):
         currentPrice = data["last_price"]
         trailsSLtrigger = purchasePrice + (purchasePrice*5/100)
         trailSL = purchasePrice + (purchasePrice*1/100)
-        # WORKING WITH 1:2 RR
-        # if(trailsSLtrigger <= currentPrice):
-        #     resultOrder = orderCollection.update_one(
-        #         {
-        #             "instrument_token" : data["instrument_token"],
-        #             "status": "Active"
-        #         },
-        #         {
-        #             "$set":{
-        #                 "stopLoss":trailSL,
-        #                 "stopLossTrailed":True,
-        #                 "trailsSLtrigger":trailsSLtrigger,
-        #                 "status":"trailingSL"
-        #                 },
-                    
-        #         })
-        #     if resultOrder.modified_count >0:
-        #         msg = "SL Updated with for oreder id " + str(result[0]["orderId"])
-        #         SendMsg(msg)
-        # print(target,data["last_price"],stpLss,"from checkTarget and sl")
-        if (stpLss >= data["last_price"] or target <= data["last_price"]):
+        timeCondition = checkTimeCondition(result[0]["executed_time"])
+        print(timeCondition,"Time conditionnnnn")
+        if ((stpLss >= data["last_price"] or target <= data["last_price"]) and timeCondition == True ):
             print("sell order called")
             if testing == True:
                 orderId = random.randint(10000,99999)
@@ -583,88 +578,186 @@ def exitOrder():
     return
 
 
+def checkTime(cross_time):
+    level_crossed_datetime = datetime.strptime(cross_time, "%H:%M:%S.%f").time()
+    current_datetime = datetime.now().time()
+    total_seconds = (current_datetime.hour - level_crossed_datetime.hour) * 3600 + \
+        (current_datetime.minute - level_crossed_datetime.minute) * 60 + \
+        (current_datetime.second - level_crossed_datetime.second)
 
+    print(total_seconds)
+    if total_seconds > 600:
+        return True
+    else:
+        return False
 
+def changeStatus(incomingType,id,name,indexAt):
+    
+    levelCollection = db["levels"]
+    changeTypeTo = "support" if incomingType == "resistance" else "resistance"
+    res = levelCollection.update_one({
+        "id": id
+    },{
+        "$set": {
+            "status": "Active",
+            "interchangable": False,
+            "levelDetails.type": changeTypeTo,
+            "levelDetails.interChanged": True,
+            "interchangedDetails.interchangedCompletedAt": indexAt
+        }
+    })
+    if res.modified_count > 0:
+        msg = ["Level with ID",id,"and type",incomingType,", from index",name,"at,",str(indexAt),"interchanged"]
+        SendMsg(msg)
 
+def addInterchangedDetails(id,indexAt):
+
+    levelCollection = db["levels"]
+    levelCollection.update_one({
+        "id": id
+        },{
+            "$set":{
+                "interchangedDetails.levelCrossedAt": datetime.now().time().strftime("%H:%M:%S.%f"),
+                "interchangedDetails.interchangedStartedAt": indexAt,
+                "interchangedDetails.levelCrossed": True
+                }
+        })
+
+def markLevels(level,indexAt,incomingType):
+    if "interchangedDetails" not in level:
+        print("interchangedDetails object tp be added")
+        addInterchangedDetails(level["id"],indexAt)
+                
+    if "interchangedDetails" in level:
+        cross_time = level["interchangedDetails"]["levelCrossedAt"]
+        crossTimeCondition = checkTime(cross_time)
+        print(crossTimeCondition,"cross time condition")
+        if crossTimeCondition:
+            changeStatus(incomingType,level["id"],level["name"],indexAt)
 # CHANGING STATUS MANUALLY FOR NOW
 def checkSupResStatus(level, indexAt):
     
     levelCollection = db["levels"]
 
     if level["interchangable"] == True:
-        
-        if level["name"] == "NIFTY BANK" and level["levelDetails"]["type"] == "resistance" and level["levelDetails"]["level"] + 50 < indexAt < level["levelDetails"]["level"] + 60:
-            
-            
-            res = levelCollection.update_one({
-                "id": level["id"],
-                "levelDetails.type": "resistance",
-                "status": {"$ne": "Closed"}
-            },
-            {
-              "$set":{
-                  "interchangable": False,
-                  "status": "Active",
-                  "levelDetails.interChanged": True,
-                  "interchangedAt": indexAt,
-                  "levelDetails.type": "support",
 
-              }  
-            })
+        print(level["sno"])
+        if level["name"] == "NIFTY BANK" and level["levelDetails"]["type"] == "resistance" and level["levelDetails"]["level"] + 50 < indexAt:
+            markLevels(level,indexAt,"resistance")
+            # if "interchangedDetails" not in level:
+            #     print("interchangedDetails object tp be added")
+            #     addInterchangedDetails(level["id"],indexAt)
+                
+            # if "interchangedDetails" in level:
+            #     cross_time = level["interchangedDetails"]["levelCrossedAt"]
+            #     crossTimeCondition = checkTime(cross_time)
+            #     print(crossTimeCondition,"cross time condition")
+            #     if crossTimeCondition:
+            #         changeStatus("resistance",level["id"],"NIFTY BANK",indexAt)
 
-        if level["name"] == "NIFTY BANK" and level["levelDetails"]["type"] == "support" and level["levelDetails"]["level"] - 60 < indexAt < level["levelDetails"]["level"] - 50:
+        if level["name"] == "NIFTY BANK" and level["levelDetails"]["type"] == "support" and level["levelDetails"]["level"] - 50 < indexAt:
+
+            markLevels(level,indexAt,"support")
+
+
+        if (level["name"] == "NIFTY 50" or level["name"] == "NIFTY FIN SERVICE") and level["levelDetails"]["type"] == "resistance" and level["levelDetails"]["level"] + 25 < indexAt:
+            markLevels(level,indexAt,"resistance")
+
+        if (level["name"] == "NIFTY 50" or level["name"] == "NIFTY FIN SERVICE") and level["levelDetails"]["type"] == "support" and level["levelDetails"]["level"] - 25 < indexAt:
+            markLevels(level,indexAt,"support")
+
+        # if level["name"] == "NIFTY BANK" and level["levelDetails"]["type"] == "resistance" and "interchangedDetails" in level :
+        #     # and indexAt < level["levelDetails"]["level"]
             
-            res = levelCollection.update_one({
-                "id": level["id"],
-                "levelDetails.type": "support",
-                "status": {"$ne": "Closed"}
-            },
-            {
-              "$set":{
-                  "interchangable": False,
-                  "status": "Active",
-                  "levelDetails.type": "resistance",
-                  "interchangedAt": indexAt,
-                  "levelDetails.interChanged": True,
-              }  
-            })
+        #     cross_time = level["interchangedDetails"]["levelCrossedAt"]
+        #     crossTimeCondition = checkTime(cross_time)
+        #     print(crossTimeCondition,"cross time condition")
+        #     if crossTimeCondition and indexAt > level["levelDetails"]["level"] + 50:
+        #         changeStatus("resistance",level["id"],"NIFTY BANK",indexAt)
+
+
+
+
+
+
+
+
+
+
+
+
+        # if level["name"] == "NIFTY BANK" and level["levelDetails"]["type"] == "resistance" and level["levelDetails"]["level"] + 50 < indexAt < level["levelDetails"]["level"] + 60:
+            
+            
+        #     res = levelCollection.update_one({
+        #         "id": level["id"],
+        #         "levelDetails.type": "resistance",
+        #         "status": {"$ne": "Closed"}
+        #     },
+        #     {
+        #       "$set":{
+        #           "interchangable": False,
+        #           "status": "Active",
+        #           "levelDetails.interChanged": True,
+        #           "interchangedAt": indexAt,
+        #           "levelDetails.type": "support",
+
+        #       }  
+        #     })
+
+        # if level["name"] == "NIFTY BANK" and level["levelDetails"]["type"] == "support" and level["levelDetails"]["level"] - 60 < indexAt < level["levelDetails"]["level"] - 50:
+            
+        #     res = levelCollection.update_one({
+        #         "id": level["id"],
+        #         "levelDetails.type": "support",
+        #         "status": {"$ne": "Closed"}
+        #     },
+        #     {
+        #       "$set":{
+        #           "interchangable": False,
+        #           "status": "Active",
+        #           "levelDetails.type": "resistance",
+        #           "interchangedAt": indexAt,
+        #           "levelDetails.interChanged": True,
+        #       }  
+        #     })
         
-        if (level["name"] == "NIFTY 50" or level["name"] =="NIFTY FIN SERVICE") and level["levelDetails"]["type"] == "resistance" and level["levelDetails"]["level"] + 20 < indexAt < level["levelDetails"]["level"] + 25:
+        # if (level["name"] == "NIFTY 50" or level["name"] =="NIFTY FIN SERVICE") and level["levelDetails"]["type"] == "resistance" and level["levelDetails"]["level"] + 20 < indexAt < level["levelDetails"]["level"] + 25:
         
             
-            res = levelCollection.update_one({
-                "id": level["id"],
-                "levelDetails.type": "resistance",
-                "status": {"$ne": "Closed"}
-            },
-            {
-              "$set":{
-                  "interchangable": False,
-                  "status": "Active",
-                  "levelDetails.type": "support",
-                  "interchangedAt": indexAt,
-                  "levelDetails.interChanged": True,
-              }  
-            })
+        #     res = levelCollection.update_one({
+        #         "id": level["id"],
+        #         "levelDetails.type": "resistance",
+        #         "status": {"$ne": "Closed"}
+        #     },
+        #     {
+        #       "$set":{
+        #           "interchangable": False,
+        #           "status": "Active",
+        #           "levelDetails.type": "support",
+        #           "interchangedAt": indexAt,
+        #           "levelDetails.interChanged": True,
+        #       }  
+        #     })
             
 
-        if (level["name"] == "NIFTY 50" or level["name"] =="NIFTY FIN SERVICE") and level["levelDetails"]["type"] == "support" and level["levelDetails"]["level"] - 25 < indexAt < level["levelDetails"]["level"] - 20:
+        # if (level["name"] == "NIFTY 50" or level["name"] =="NIFTY FIN SERVICE") and level["levelDetails"]["type"] == "support" and level["levelDetails"]["level"] - 25 < indexAt < level["levelDetails"]["level"] - 20:
             
             
-            res = levelCollection.update_one({
-                "id": level["id"],
-                "status": {"$ne": "Closed"},
-                "levelDetails.type": "support"
-            },
-            {
-              "$set":{
-                  "interchangable": False,
-                  "status": "Active",
-                  "levelDetails.type": "resistance",
-                  "interchangedAt": indexAt,
-                  "levelDetails.interChanged": True
-              }  
-            })
+        #     res = levelCollection.update_one({
+        #         "id": level["id"],
+        #         "status": {"$ne": "Closed"},
+        #         "levelDetails.type": "support"
+        #     },
+        #     {
+        #       "$set":{
+        #           "interchangable": False,
+        #           "status": "Active",
+        #           "levelDetails.type": "resistance",
+        #           "interchangedAt": indexAt,
+        #           "levelDetails.interChanged": True
+        #       }  
+        #     })
         
         # if res.modified_count>0:
         #     msg = ["Level with ID",level["id"],"and type",level["levelDetails"]["type"],", from index",level["name"],"at,",str(indexAt),"interchanged"]

@@ -223,30 +223,79 @@
 
 # obj["expiry"] = obj["expiry"].strftime('%Y-%m-%d')
 # print(obj)
-trend  =  "BULLISH"
+# trend  =  "BULLISH"
+# obj = {
+#   "id": "Level-01",
+#   "name": "NIFTY BANK",
+#   "tradingsymbol": "NIFTY BANK",
+#   "interchangable": False,
+#   "status": "Closed",
+#   "instrument_token": 260105,
+#   "forDevPurpuouse": False,
+#   "levelDetails": {
+#     "level": 44784,
+#     "type": "support",
+#     "testCount": 0,
+#     "interChanged": False,
+#     "_id": {
+#       "$oid": "64a23d380ba541903d9a226f"
+#     }
+#   },
+#   "dateCreated": {
+#     "$date": "2023-07-03T03:15:04.138Z"
+#   },
+#   "tradeResults": [],
+#   "__v": 0
+# }
+
+# cond = (obj["levelDetails"]["type"] == "superSupport" and trend == "BULLISH")
+# print(cond)
+
+# import datetime
+
+# # Get the executed time from the document
+# executed_time = "16:26:29.000000"
+
+# # Convert the executed time to a datetime object
+# executed_datetime = datetime.datetime.strptime(executed_time, "%H:%M:%S.%f")
+
+# # Add one minute to the executed time
+# target_datetime = executed_datetime + datetime.timedelta(minutes=1)
+
+# # Get the current time
+# current_time = datetime.datetime.now().time()
+
+# # Convert the current time to a datetime object
+# current_datetime = datetime.datetime.combine(datetime.date.today(), current_time)
+
+# # Compare the current time with the target time
+# if current_datetime.time() > target_datetime.time():
+#     print("Current time is greater than one minute plus the executed time.",target_datetime.time(),current_datetime.time())
+# else:
+#     print("Current time is not greater than one minute plus the executed time.",target_datetime.time(),current_datetime.time())
+
+from execOrder import checkTimeCondition
 obj = {
-  "id": "Level-01",
-  "name": "NIFTY BANK",
-  "tradingsymbol": "NIFTY BANK",
-  "interchangable": False,
-  "status": "Closed",
-  "instrument_token": 260105,
-  "forDevPurpuouse": False,
-  "levelDetails": {
-    "level": 44784,
-    "type": "support",
-    "testCount": 0,
-    "interChanged": False,
-    "_id": {
-      "$oid": "64a23d380ba541903d9a226f"
-    }
+  "_id": {
+    "$oid": "64a79bedfbd96bdbb92a06de"
   },
-  "dateCreated": {
-    "$date": "2023-07-03T03:15:04.138Z"
-  },
-  "tradeResults": [],
-  "__v": 0
+  "sno": 26,
+  "orderId": "230707600794737",
+  "instrument_token": 12843010,
+  "type": "CE",
+  "parent_instrument_token": 257801,
+  "indexAt": 20203.45,
+  "strike": "FINNIFTY2371120200CE",
+  "indexName": "FINNIFTY",
+  "price": 94.05,
+  "executedAt": "16:51:00.000000",
+  "levelId": "Level-0202",
+  "levelStatus": "Active",
+  "levelType": "support",
+  "stopLoss": 89.3475,
+  "target": 103.455,
+  "qty": 40,
+  "status": "Closed"
 }
 
-cond = (obj["levelDetails"]["type"] == "superSupport" and trend == "BULLISH")
-print(cond)
+print(checkTimeCondition(obj["executedAt"]))

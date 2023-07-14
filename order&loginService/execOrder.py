@@ -183,6 +183,16 @@ def placeOrder(price, token,type,level):
         purchasePrice = orderData[len(orderData)-1]['average_price']
         sl = purchasePrice - (purchasePrice * stoppLoss)/100
         tar = purchasePrice + (purchasePrice * target)/100
+        if testing == "False" and purchasePrice < 100:
+            risk = 0
+            if 70 < purchasePrice < 100:
+                risk = 6
+
+            if  purchasePrice <= 70:
+                risk = 7
+
+            sl = purchasePrice - risk
+            tar = purchasePrice + risk*riskToReward
 
         count = collection.count_documents({})
         print(count,"from count documentssss")
